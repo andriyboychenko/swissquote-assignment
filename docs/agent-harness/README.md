@@ -28,6 +28,7 @@ Read it before changing code, infrastructure, or tests.
 - `backend`: Spring Boot application built with Gradle.
 - `postgres`: PostgreSQL database with Liquibase-managed schema.
 - Google OAuth login starts at `/oauth2/authorization/google` and returns through `/login/oauth2/code/google`.
+- Liquibase seeds a compact demo dataset: 100 customers with 100 activities each, for 10,000 total card/payment/crypto activities and 12 demo risk rules.
 
 Traffic flow:
 
@@ -67,6 +68,7 @@ Browser
 - Use Java records for API request/response DTOs.
 - Do not expose JPA entities directly from REST APIs.
 - Manage database schema with Liquibase formatted SQL.
+- Keep demo data compact and generated through SQL ranges or scripts instead of committing large insert dumps.
 - Use `TIMESTAMPTZ` for timestamps and `NUMERIC`/`DECIMAL` for money.
 - Add indexes for all foreign key columns.
 - Add or update unit tests for behavior changes.

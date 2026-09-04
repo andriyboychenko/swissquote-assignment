@@ -14,6 +14,8 @@ The frontend is currently a static service overview. API calls can be added late
 
 Database schema changes are managed by Liquibase using formatted SQL changelogs under `backend/src/main/resources/db/changelog`.
 
+The initial database includes compact Liquibase demo data: 100 customers with 100 activities each, for 10,000 total customer activities split across card, payment, and crypto records. The seed data is generated with SQL ranges instead of a large committed data dump.
+
 ## Requirements
 
 - Docker
@@ -117,6 +119,26 @@ docker compose down -v
 ```
 
 If you change `DB_PASSWORD` after PostgreSQL has already created its Docker volume, recreate the database volume with `docker compose down -v` before starting again.
+
+## Demo Data
+
+Liquibase creates demo data on a fresh database:
+
+```text
+Customers: 100
+Activities per customer: 100
+Total activities: 10,000
+Activity types: card, payment, crypto
+Risk rules: 12 demo rules
+Risk assessments: deterministic subset for risky-looking activity
+```
+
+To recreate the demo data from scratch, delete the PostgreSQL volume and start again:
+
+```bash
+docker compose --env-file gradle.properties down -v
+docker compose --env-file gradle.properties up --build
+```
 
 ## Deploy Frontend To Vercel
 

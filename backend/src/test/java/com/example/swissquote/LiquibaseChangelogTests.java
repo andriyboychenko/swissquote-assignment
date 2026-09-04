@@ -83,4 +83,42 @@ class LiquibaseChangelogTests {
             assertThat(changelog).contains("CREATE INDEX idx_operator_users_blocked ON operator_users(blocked)");
         }
     }
+
+    @Test
+    void masterChangelogContainsCompactDemoActivitySeedData() throws IOException {
+        try (InputStream inputStream = getClass().getResourceAsStream("/db/changelog/db.changelog-master.sql")) {
+            assertThat(inputStream).isNotNull();
+
+            String changelog = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertThat(changelog).contains("--changeset andriy:0004-demo-customer-activity-data");
+            assertThat(changelog).contains("FROM GENERATE_SERIES(1, 100) AS customer_number");
+            assertThat(changelog).contains("CROSS JOIN GENERATE_SERIES(1, 100) AS activity_number");
+            assertThat(changelog).contains("INSERT INTO card_activity");
+            assertThat(changelog).contains("INSERT INTO payment_activity");
+            assertThat(changelog).contains("INSERT INTO crypto_activity");
+            assertThat(changelog).contains("INSERT INTO risk_rules");
+            assertThat(changelog).contains("INSERT INTO risk_assessments");
+            assertThat(changelog).contains("'885be553-1447-42fd-b0d3-b8463c7813b4'");
+        }
+    }
+
+    @Test
+    void masterChangelogContainsAdditionalDemoRiskRules() throws IOException {
+        try (InputStream inputStream = getClass().getResourceAsStream("/db/changelog/db.changelog-master.sql")) {
+            assertThat(inputStream).isNotNull();
+
+            String changelog = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertThat(changelog).contains("--changeset andriy:0005-more-demo-risk-rules");
+            assertThat(changelog).contains("Repeated failed card authorizations");
+            assertThat(changelog).contains("Unusual merchant category pattern");
+            assertThat(changelog).contains("Card-not-present high-value activity");
+            assertThat(changelog).contains("High-value international wire");
+            assertThat(changelog).contains("New receiver payment velocity");
+            assertThat(changelog).contains("Round-amount structuring signal");
+            assertThat(changelog).contains("High-value crypto transfer");
+            assertThat(changelog).contains("Multiple blockchain destinations");
+        }
+    }
 }
