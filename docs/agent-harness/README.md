@@ -29,6 +29,7 @@ Read it before changing code, infrastructure, or tests.
 - `postgres`: PostgreSQL database with Liquibase-managed schema.
 - Google OAuth login starts at `/oauth2/authorization/google` and returns through `/login/oauth2/code/google`.
 - Liquibase seeds a compact demo dataset: 100 customers with 100 activities each, for 10,000 total card/payment/crypto activities and 12 demo risk rules.
+- Legacy quote-demo database objects such as `market_quote` are not part of the current domain and are removed through Liquibase cleanup changesets.
 
 Traffic flow:
 

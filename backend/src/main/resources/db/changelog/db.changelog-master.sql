@@ -285,3 +285,7 @@ VALUES
     ('059f48f5-fd2b-4a8f-bddd-ea345e386006', 'Round-amount structuring signal', 'PAYMENT', 'several payments just below a reporting threshold', 22.00),
     ('27a67f38-d581-4015-b738-e468d8736007', 'High-value crypto transfer', 'CRYPTO', 'amount >= 10000 and tx_hash is present', 21.00),
     ('f699d5cb-7f39-4e43-9b3f-60d4178f6008', 'Multiple blockchain destinations', 'CRYPTO', 'transfers to multiple destination wallets in a short time window', 17.50);
+
+--changeset andriy:0006-drop-legacy-market-quote
+--comment Remove leftover quote-demo table from older local database volumes.
+DROP TABLE IF EXISTS market_quote;

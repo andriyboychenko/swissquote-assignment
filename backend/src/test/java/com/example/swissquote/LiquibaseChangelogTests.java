@@ -121,4 +121,16 @@ class LiquibaseChangelogTests {
             assertThat(changelog).contains("Multiple blockchain destinations");
         }
     }
+
+    @Test
+    void masterChangelogDropsLegacyMarketQuoteTable() throws IOException {
+        try (InputStream inputStream = getClass().getResourceAsStream("/db/changelog/db.changelog-master.sql")) {
+            assertThat(inputStream).isNotNull();
+
+            String changelog = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertThat(changelog).contains("--changeset andriy:0006-drop-legacy-market-quote");
+            assertThat(changelog).contains("DROP TABLE IF EXISTS market_quote");
+        }
+    }
 }
