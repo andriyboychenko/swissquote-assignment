@@ -1,0 +1,12 @@
+.DS_Store
+.git
+.gradle
+.idea
+.vercel
+**/build
+**/dist
+**/node_modules
+**/target
+*.iml
+*.log
+gradle.properties

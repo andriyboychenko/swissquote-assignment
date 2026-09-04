@@ -1,0 +1,14 @@
+.DS_Store
+gradle.properties
+.env
+.env.local
+.env.*.local
+.vercel/
+target/
+build/
+.gradle/
+node_modules/
+dist/
+.idea/
+*.iml
+*.log
