@@ -1,8 +1,10 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { fetchCustomerAiAnalyses, requestCustomerAiAnalysis } from "../api/aiAnalysesApi";
 import { fetchCustomerActivities, fetchCustomerSuggestions } from "../api/customerActivitiesApi";
 import { ActivityFilters } from "./ActivityFilters";
 import { ActivitySummary } from "./ActivitySummary";
 import { ActivityTable } from "./ActivityTable";
+import { AiAnalysisPanel } from "./AiAnalysisPanel";
 import { CustomerSearchForm } from "./CustomerSearchForm";
 
 const ACTIVITY_PAGE_SIZE = 50;
@@ -16,7 +18,8 @@ const EMPTY_FILTERS = {
   currency: "",
   counterparty: "",
   channel: "",
-  detail: ""
+  detail: "",
+  riskOnly: false
 };
 const DEFAULT_SORT = {
   sortBy: "createdAt",
@@ -29,6 +32,9 @@ export function CustomerActivityDashboard() {
   const [status, setStatus] = useState("idle");
   const [paginationStatus, setPaginationStatus] = useState("idle");
   const [error, setError] = useState("");
+  const [analyses, setAnalyses] = useState([]);
+  const [analysisStatus, setAnalysisStatus] = useState("idle");
+  const [analysisError, setAnalysisError] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [isFilterPanelCollapsed, setIsFilterPanelCollapsed] = useState(true);
@@ -37,6 +43,25 @@ export function CustomerActivityDashboard() {
   const [suggestionStatus, setSuggestionStatus] = useState("idle");
   const suggestionRequestRef = useRef(0);
   const suggestionTimerRef = useRef(null);
+
+  useEffect(() => () => {
+    suggestionRequestRef.current += 1;
+    if (suggestionTimerRef.current) {
+      window.clearTimeout(suggestionTimerRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    function handleRecommendedFilterShortcut(event) {
+      if (event.altKey && event.key.toLowerCase() === "r" && report) {
+        event.preventDefault();
+        void handleApplyRecommendedFilters();
+      }
+    }
+
+    window.addEventListener("keydown", handleRecommendedFilterShortcut);
+    return () => window.removeEventListener("keydown", handleRecommendedFilterShortcut);
+  }, [report, filters, sort]);
 
   function handleCustomerIdChange(nextCustomerId) {
     setCustomerId(nextCustomerId);
@@ -128,18 +153,23 @@ export function CustomerActivityDashboard() {
     if (mode === "replace") {
       setStatus("loading");
       setPaginationStatus("idle");
+      setAnalysisStatus("loading");
     } else {
       setPaginationStatus("loading");
     }
     setError("");
+    setAnalysisError("");
 
     try {
-      const activityReport = await fetchCustomerActivities(customerId, {
+      const activityRequest = fetchCustomerActivities(customerId, {
         limit: ACTIVITY_PAGE_SIZE,
         offset: nextOffset,
         filters: toApiFilters(activeFilters),
         sort: activeSort
       });
+      const [activityReport, customerAnalyses] = mode === "replace"
+        ? await Promise.all([activityRequest, fetchCustomerAiAnalyses(customerId)])
+        : [await activityRequest, analyses];
       setReport((currentReport) => (
         mode === "append"
           ? {
@@ -148,17 +178,22 @@ export function CustomerActivityDashboard() {
             }
           : activityReport
       ));
+      setAnalyses(customerAnalyses);
       setStatus("loaded");
       setPaginationStatus("idle");
+      setAnalysisStatus("idle");
     } catch (requestError) {
       if (mode === "replace") {
         setReport(null);
+        setAnalyses([]);
       }
       setError(requestError.message);
+      setAnalysisError(mode === "replace" ? requestError.message : "");
       if (mode === "replace") {
         setStatus("error");
       }
       setPaginationStatus(mode === "append" ? "error" : "idle");
+      setAnalysisStatus("idle");
     }
   }
 
@@ -225,6 +260,52 @@ export function CustomerActivityDashboard() {
     }
   }
 
+  async function handleRequestAnalysis() {
+    if (!report?.customerId) {
+      return;
+    }
+
+    setAnalysisStatus("requesting");
+    setAnalysisError("");
+
+    try {
+      const requestedAnalysis = await requestCustomerAiAnalysis(report.customerId);
+      setAnalyses((currentAnalyses) => [
+        requestedAnalysis,
+        ...currentAnalyses.filter((analysis) => (
+          analysis.analysisRequestId !== requestedAnalysis.analysisRequestId
+        ))
+      ]);
+      setAnalysisStatus("idle");
+    } catch (requestError) {
+      setAnalysisError(requestError.message);
+      setAnalysisStatus("idle");
+    }
+  }
+
+  async function handleApplyRecommendedFilters() {
+    const nextFilters = {
+      ...filters,
+      riskOnly: true
+    };
+    const nextSort = {
+      sortBy: "amount",
+      sortDirection: "DESC"
+    };
+    setFilters(nextFilters);
+    setSort(nextSort);
+    setIsFilterPanelCollapsed(false);
+
+    if (report) {
+      await loadActivityPage({
+        nextOffset: 0,
+        nextFilters,
+        nextSort,
+        mode: "replace"
+      });
+    }
+  }
+
   return (
     <section className="dashboard-panel" aria-labelledby="dashboard-title">
       <div className="dashboard-header">
@@ -262,6 +343,14 @@ export function CustomerActivityDashboard() {
             <strong>{report.customerId}</strong>
           </div>
           <ActivitySummary summary={report.summary} />
+          <AiAnalysisPanel
+            analyses={analyses}
+            error={analysisError}
+            isLoading={analysisStatus === "loading"}
+            isRequesting={analysisStatus === "requesting"}
+            onApplyRecommendedFilters={handleApplyRecommendedFilters}
+            onRequestAnalysis={handleRequestAnalysis}
+          />
           <ActivityFilters
             filters={filters}
             isCollapsed={isFilterPanelCollapsed}

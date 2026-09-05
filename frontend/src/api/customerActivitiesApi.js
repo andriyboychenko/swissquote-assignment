@@ -20,6 +20,7 @@ export async function fetchCustomerActivities(customerId, { limit = 50, offset =
   appendSearchParam(searchParams, "counterparty", filters.counterparty);
   appendSearchParam(searchParams, "channel", filters.channel);
   appendSearchParam(searchParams, "detail", filters.detail);
+  appendSearchParam(searchParams, "riskOnly", filters.riskOnly);
   appendSearchParam(searchParams, "sortBy", sort.sortBy);
   appendSearchParam(searchParams, "sortDirection", sort.sortDirection);
 

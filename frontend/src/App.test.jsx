@@ -67,7 +67,7 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("heading", { name: "Disclaimer" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Note" })).toBeInTheDocument();
     expect(screen.getByText("Welcome, Demo Operator")).toBeInTheDocument();
     expect(screen.getByText(/all authenticated users have access/)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Search activity by Customer ID" })).toBeInTheDocument();

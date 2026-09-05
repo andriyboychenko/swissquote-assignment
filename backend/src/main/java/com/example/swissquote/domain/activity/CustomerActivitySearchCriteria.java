@@ -15,6 +15,6 @@ public record CustomerActivitySearchCriteria(
     }
 
     private static CustomerActivityFilter emptyFilter() {
-        return new CustomerActivityFilter(null, null, null, null, null, null, null, null, null, null);
+        return new CustomerActivityFilter(null, null, null, null, null, null, null, null, null, null, false);
     }
 }

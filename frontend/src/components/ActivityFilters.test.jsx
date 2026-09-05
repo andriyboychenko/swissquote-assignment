@@ -13,7 +13,8 @@ const filters = {
   currency: "",
   counterparty: "",
   channel: "",
-  detail: ""
+  detail: "",
+  riskOnly: false
 };
 
 describe("ActivityFilters", () => {
@@ -37,6 +38,7 @@ describe("ActivityFilters", () => {
     expect(screen.getByLabelText("Min amount")).toHaveAttribute("type", "number");
     expect(screen.getByLabelText("Max amount")).toHaveAttribute("type", "number");
     expect(screen.getByLabelText("Currency").tagName).toBe("SELECT");
+    expect(screen.getByLabelText("Flagged activity only")).toHaveAttribute("type", "checkbox");
   });
 
   it("reports filter changes and reset requests", () => {
@@ -55,11 +57,13 @@ describe("ActivityFilters", () => {
     fireEvent.change(screen.getByLabelText("Type"), { target: { value: "CARD" } });
     fireEvent.change(screen.getByLabelText("Status"), { target: { value: "Completed" } });
     fireEvent.change(screen.getByLabelText("Counterparty"), { target: { value: "Merchant" } });
+    fireEvent.click(screen.getByLabelText("Flagged activity only"));
     fireEvent.click(screen.getByRole("button", { name: "Reset" }));
 
     expect(onFilterChange).toHaveBeenCalledWith("activityType", "CARD");
     expect(onFilterChange).toHaveBeenCalledWith("status", "Completed");
     expect(onFilterChange).toHaveBeenCalledWith("counterparty", "Merchant");
+    expect(onFilterChange).toHaveBeenCalledWith("riskOnly", true);
     expect(onReset).toHaveBeenCalledOnce();
   });
 
@@ -80,5 +84,33 @@ describe("ActivityFilters", () => {
 
     expect(screen.queryByLabelText("From")).not.toBeInTheDocument();
     expect(onToggleCollapsed).toHaveBeenCalledOnce();
+  });
+
+  it("shows the active filter count when minimized", () => {
+    render(
+      <ActivityFilters
+        filters={{ ...filters, activityType: "CARD", amountMin: "100", riskOnly: true }}
+        isCollapsed={true}
+        onToggleCollapsed={vi.fn()}
+        onFilterChange={vi.fn()}
+        onReset={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("3 applied")).toBeInTheDocument();
+  });
+
+  it("does not show the active filter count when expanded", () => {
+    render(
+      <ActivityFilters
+        filters={{ ...filters, activityType: "CARD" }}
+        isCollapsed={false}
+        onToggleCollapsed={vi.fn()}
+        onFilterChange={vi.fn()}
+        onReset={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByText("1 applied")).not.toBeInTheDocument();
   });
 });

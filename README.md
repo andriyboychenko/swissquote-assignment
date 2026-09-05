@@ -10,7 +10,7 @@ This project runs a Spring Boot backend, React UI, and PostgreSQL database in se
 - `backend`: Spring Boot REST API built with Gradle, using Spring Web, JPA, and Actuator
 - `postgres`: PostgreSQL database with persistent Docker volume storage
 
-The frontend is currently a static service overview. API calls can be added later under `frontend/src` when backend endpoints are defined. Browser traffic enters through the load balancer. Requests under `/api/` and `/actuator/` are forwarded to the API gateway, which forwards them to the backend.
+Browser traffic enters through the load balancer. Requests under `/api/`, `/actuator/`, `/oauth2/`, `/login/`, and `/logout` are forwarded to the API gateway, which forwards them to the backend. After login, the frontend shows the operator dashboard for customer lookup, activity review, filtering, sorting, lazy-loaded rows, and AI risk analysis requests.
 
 Database schema changes are managed by Liquibase using formatted SQL changelogs under `backend/src/main/resources/db/changelog`.
 
@@ -54,17 +54,32 @@ Then open:
 - Google login start path: <http://localhost:3000/oauth2/authorization/google>
 - PostgreSQL inside Docker network: `postgres:5432`
 
-After login, operators can search customer activity by Customer ID. The backend endpoint is:
+After login, operators can search customer activity by Customer ID. Suspicious rows are highlighted from persisted `transactions.risk_indicators` JSONB metadata that is generated from risk-rule assessments. The backend endpoint is:
 
 ```text
 GET /api/customers/{customerId}/activities?limit=50&offset=0
 ```
 
-Activity review supports server-side filtering and sorting through query parameters such as `createdFrom`, `createdTo`, `activityType`, `status`, `amountMin`, `amountMax`, `currency`, `counterparty`, `channel`, `detail`, `sortBy`, and `sortDirection`.
+Activity review supports server-side filtering and sorting through query parameters such as `createdFrom`, `createdTo`, `activityType`, `status`, `amountMin`, `amountMax`, `currency`, `counterparty`, `channel`, `detail`, `riskOnly`, `sortBy`, and `sortDirection`. AI recommendations can apply the flagged-activity filter from the UI or with `Alt+R`.
+
+Operators can request and review persisted AI analysis for a customer through:
+
+```text
+POST /api/customers/{customerId}/ai-analyses
+GET /api/customers/{customerId}/ai-analyses
+```
+
+The current implementation uses a local deterministic analyzer behind the `AiAnalysisGenerator` interface and a generated policy corpus under `backend/src/main/resources/policies`. It persists request status, result text, risk level, recommendations, model/prompt version, and retrieved policy evidence with concrete policy section references. This keeps the contract ready for a later Spring AI implementation with a real chat model, vector-store-backed RAG, token/latency audit events, and asynchronous worker execution.
+
+Policy evidence can be opened from the UI. The backend resolves bundled policy sections through:
+
+```text
+GET /api/policies/{documentName}/sections/{sectionAnchor}
+```
 
 ## Google Login Setup
 
-Google login is implemented with Spring Security OAuth2 Login, following the same pattern as the `home-inventory` project.
+Google login is implemented with Spring Security OAuth2 Login.
 
 Create an OAuth 2.0 Web Client in Google Cloud Console:
 
@@ -142,6 +157,10 @@ Activity types: card, payment, crypto
 Risk rules: 12 demo rules
 Risk assessments: deterministic subset for risky-looking activity
 Pagination: activity review returns 50 rows by default, caps requests at 100 rows, and loads additional rows on scroll
+AI analysis: requests, results, and retrieved policy evidence are persisted once an operator asks for analysis
+Policy corpus: generated Markdown policy files live under backend resources and are cited by analysis evidence
+Suspicious rows: activity rows include JSONB-backed risk indicators generated from risk assessments
+Known low-risk customer: `005514e6-1ebe-8010-de91-aff66d1d9484`
 ```
 
 To fetch one demo customer ID from the running database:

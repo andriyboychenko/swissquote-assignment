@@ -2,6 +2,7 @@ import React from "react";
 import { ActivityDateTime } from "./ActivityDateTime";
 import { ActivityDetail } from "./ActivityDetail";
 import { ActivityMovementIndicator, getActivityMovement } from "./ActivityMovementIndicator";
+import { ActivityRiskIndicator } from "./ActivityRiskIndicator";
 import { TooltipText } from "./TooltipText";
 
 function formatAmount(amount, currency) {
@@ -60,10 +61,20 @@ export function ActivityTable({ activities, hasMore, isLoadingMore, sort, onSort
         <tbody>
           {activities.map((activity) => {
             const movement = getActivityMovement(activity);
+            const riskIndicators = activity.riskIndicators ?? [];
+            const hasRiskIndicators = riskIndicators.length > 0;
 
             return (
-              <tr key={activity.transactionId}>
-                <td><ActivityDateTime value={activity.createdAt} /></td>
+              <tr
+                className={hasRiskIndicators ? "activity-row-suspicious" : ""}
+                key={activity.transactionId}
+              >
+                <td>
+                  <div className="created-risk-cell">
+                    <ActivityDateTime value={activity.createdAt} />
+                    <ActivityRiskIndicator riskIndicators={riskIndicators} />
+                  </div>
+                </td>
                 <td>
                   <span className={`activity-type ${activity.activityType.toLowerCase()}`}>
                     {activity.activityType}

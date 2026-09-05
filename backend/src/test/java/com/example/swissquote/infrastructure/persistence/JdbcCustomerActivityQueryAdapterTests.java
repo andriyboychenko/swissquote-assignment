@@ -15,6 +15,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.math.BigDecimal;
+import java.sql.ResultSet;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -40,7 +42,8 @@ class JdbcCustomerActivityQueryAdapterTests {
                 Instant.parse("2026-09-04T12:00:00Z"),
                 "Merchant 001",
                 "Credit",
-                "PAN ****1234, MCC 5411, Decline: Insufficient funds"
+                "PAN ****1234, MCC 5411, Decline: Insufficient funds",
+                List.of()
         );
         CustomerActivitySummary summary = new CustomerActivitySummary(1, 1, 0, 0, 0, 0);
         NamedParameterJdbcTemplate jdbcTemplate = mock(NamedParameterJdbcTemplate.class);
@@ -71,7 +74,8 @@ class JdbcCustomerActivityQueryAdapterTests {
                                 "CHF",
                                 "Merchant",
                                 "Credit",
-                                "PAN"
+                                "PAN",
+                                true
                         ),
                         new CustomerActivitySort("amount", SortDirection.ASC)
                 )
@@ -79,7 +83,7 @@ class JdbcCustomerActivityQueryAdapterTests {
 
         ArgumentCaptor<MapSqlParameterSource> parametersCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
         verify(jdbcTemplate).query(
-                contains("ca.decline_reason"),
+                contains("t.risk_indicators <> '[]'::jsonb"),
                 parametersCaptor.capture(),
                 org.mockito.ArgumentMatchers.<RowMapper<CustomerActivity>>any()
         );
@@ -93,5 +97,62 @@ class JdbcCustomerActivityQueryAdapterTests {
         assertThat(parameters.getValue("counterparty")).isEqualTo("%merchant%");
         assertThat(report.activities()).containsExactly(activity);
         assertThat(report.summary()).isEqualTo(summary);
+    }
+
+    @Test
+    void findActivityReportMapsRiskIndicatorsFromJsonMetadata() throws Exception {
+        UUID customerId = UUID.randomUUID();
+        UUID transactionId = UUID.randomUUID();
+        NamedParameterJdbcTemplate jdbcTemplate = mock(NamedParameterJdbcTemplate.class);
+        CustomerActivitySummary summary = new CustomerActivitySummary(1, 1, 0, 0, 0, 0);
+        ArgumentCaptor<RowMapper<CustomerActivity>> rowMapperCaptor = ArgumentCaptor.captor();
+        when(jdbcTemplate.query(
+                contains("risk_indicators"),
+                any(MapSqlParameterSource.class),
+                rowMapperCaptor.capture()
+        )).thenAnswer(invocation -> List.of(rowMapperCaptor.getValue().mapRow(resultSet(transactionId), 0)));
+        when(jdbcTemplate.queryForObject(
+                contains("COUNT(*)::INTEGER AS total_activities"),
+                any(MapSqlParameterSource.class),
+                org.mockito.ArgumentMatchers.<RowMapper<CustomerActivitySummary>>any()
+        )).thenReturn(summary);
+        JdbcCustomerActivityQueryAdapter adapter = new JdbcCustomerActivityQueryAdapter(jdbcTemplate);
+
+        CustomerActivityReport report = adapter.findActivityReport(
+                customerId,
+                50,
+                0,
+                CustomerActivitySearchCriteria.defaultCriteria()
+        );
+
+        assertThat(report.activities().getFirst().riskIndicators()).hasSize(1);
+        assertThat(report.activities().getFirst().riskIndicators().getFirst().ruleName())
+                .isEqualTo("High-value card transaction");
+        assertThat(report.activities().getFirst().riskIndicators().getFirst().severity()).isEqualTo("HIGH");
+        assertThat(report.activities().getFirst().riskIndicators().getFirst().scoreContribution())
+                .isEqualByComparingTo("20.00");
+    }
+
+    private static ResultSet resultSet(UUID transactionId) throws Exception {
+        ResultSet resultSet = mock(ResultSet.class);
+        when(resultSet.getObject("transaction_id", UUID.class)).thenReturn(transactionId);
+        when(resultSet.getString("activity_type")).thenReturn("CARD");
+        when(resultSet.getBigDecimal("amount")).thenReturn(BigDecimal.valueOf(125.50));
+        when(resultSet.getString("currency")).thenReturn("CHF");
+        when(resultSet.getString("status")).thenReturn("Completed");
+        when(resultSet.getTimestamp("created_at")).thenReturn(Timestamp.from(Instant.parse("2026-09-04T12:00:00Z")));
+        when(resultSet.getString("counterparty")).thenReturn("Merchant 001");
+        when(resultSet.getString("channel")).thenReturn("Credit");
+        when(resultSet.getString("detail")).thenReturn("PAN ****1234, MCC 5411");
+        when(resultSet.getString("risk_indicators")).thenReturn("""
+                [
+                  {
+                    "ruleName": "High-value card transaction",
+                    "severity": "HIGH",
+                    "scoreContribution": 20.00
+                  }
+                ]
+                """);
+        return resultSet;
     }
 }

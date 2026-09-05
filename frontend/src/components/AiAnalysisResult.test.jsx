@@ -1,0 +1,75 @@
+import React from "react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { AiAnalysisResult } from "./AiAnalysisResult";
+
+describe("AiAnalysisResult", () => {
+  it("renders completed analysis details and evidence", () => {
+    const onApplyRecommendedFilters = vi.fn();
+    render(
+      <AiAnalysisResult
+        onApplyRecommendedFilters={onApplyRecommendedFilters}
+        analysis={{
+          status: "COMPLETED",
+          result: {
+            riskLevel: "MEDIUM",
+            summary: "Several suspicious payments were reviewed.",
+            recommendations: "Contact the customer care escalation desk.",
+            evidence: [
+              {
+                evidenceId: "evidence-1",
+                sourceReference: "policy://policies/risk-signal-handling-v1.md#triggered-rule-response",
+                excerpt: "Escalate medium risk findings."
+              }
+            ]
+          }
+        }}
+      />
+    );
+
+    expect(screen.getByText("Risk: MEDIUM")).toHaveClass("risk-medium");
+    expect(screen.getByText("Several suspicious payments were reviewed.")).toBeInTheDocument();
+    expect(screen.getByText("policy://policies/risk-signal-handling-v1.md#triggered-rule-response"))
+      .toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Review flagged activity/ }));
+
+    expect(onApplyRecommendedFilters).toHaveBeenCalledOnce();
+  });
+
+  it("does not repeat recommendations already included in a structured risk alert summary", () => {
+    render(
+      <AiAnalysisResult
+        analysis={{
+          status: "COMPLETED",
+          result: {
+            riskLevel: "HIGH",
+            summary: `RISK ALERT SUMMARY
+Customer ID: customer-1
+
+3. RECOMMENDED OPERATOR ACTION:
+   - Escalate to a senior operator.`,
+            recommendations: "Escalate to a senior operator.",
+            evidence: []
+          }
+        }}
+      />
+    );
+
+    expect(screen.getAllByText(/Escalate to a senior operator/)).toHaveLength(1);
+  });
+
+  it("renders failed analysis without result details", () => {
+    render(
+      <AiAnalysisResult
+        analysis={{
+          status: "FAILED",
+          failureReason: "Vector store unavailable",
+          result: null
+        }}
+      />
+    );
+
+    expect(screen.getByText("Status: FAILED")).toHaveClass("status-failed");
+    expect(screen.getByText("Vector store unavailable")).toBeInTheDocument();
+  });
+});

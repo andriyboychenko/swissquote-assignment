@@ -2,22 +2,28 @@ package com.example.swissquote.infrastructure.persistence;
 
 import com.example.swissquote.application.activity.CustomerActivityRepository;
 import com.example.swissquote.domain.activity.ActivityType;
+import com.example.swissquote.domain.activity.ActivityRiskIndicator;
 import com.example.swissquote.domain.activity.CustomerActivity;
 import com.example.swissquote.domain.activity.CustomerActivityPage;
 import com.example.swissquote.domain.activity.CustomerActivityReport;
 import com.example.swissquote.domain.activity.CustomerActivitySearchCriteria;
 import com.example.swissquote.domain.activity.CustomerActivitySummary;
 import com.example.swissquote.domain.activity.SortDirection;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Repository
@@ -48,7 +54,8 @@ public class JdbcCustomerActivityQueryAdapter implements CustomerActivityReposit
                     WHEN 'PAYMENT' THEN pa.payment_method
                     ELSE cra.blockchain
                 END AS channel,
-                %s AS detail
+                %s AS detail,
+                COALESCE(t.risk_indicators, '[]'::jsonb)::TEXT AS risk_indicators
             FROM transactions t
             LEFT JOIN card_activity ca ON ca.transaction_id = t.transaction_id
             LEFT JOIN payment_activity pa ON pa.transaction_id = t.transaction_id
@@ -73,6 +80,9 @@ public class JdbcCustomerActivityQueryAdapter implements CustomerActivityReposit
             %s
             """;
     private static final RowMapper<CustomerActivity> ACTIVITY_ROW_MAPPER = new CustomerActivityRowMapper();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final TypeReference<List<Map<String, Object>>> RISK_INDICATORS_TYPE = new TypeReference<>() {
+    };
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -154,6 +164,10 @@ public class JdbcCustomerActivityQueryAdapter implements CustomerActivityReposit
 
         if (containsPattern(filter.detail()) != null) {
             predicates.add("LOWER(" + ACTIVITY_DETAIL_SQL + ") LIKE :detail");
+        }
+
+        if (filter.riskOnly()) {
+            predicates.add("t.risk_indicators <> '[]'::jsonb");
         }
 
         return "WHERE " + String.join("\n  AND ", predicates);
@@ -241,8 +255,28 @@ public class JdbcCustomerActivityQueryAdapter implements CustomerActivityReposit
                     createdAt.toInstant(),
                     resultSet.getString("counterparty"),
                     resultSet.getString("channel"),
-                    resultSet.getString("detail")
+                    resultSet.getString("detail"),
+                    parseRiskIndicators(resultSet.getString("risk_indicators"))
             );
         }
+    }
+
+    private static List<ActivityRiskIndicator> parseRiskIndicators(String value) {
+        try {
+            return OBJECT_MAPPER.readValue(value == null ? "[]" : value, RISK_INDICATORS_TYPE)
+                    .stream()
+                    .map(JdbcCustomerActivityQueryAdapter::toRiskIndicator)
+                    .toList();
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Could not parse transaction risk indicators", exception);
+        }
+    }
+
+    private static ActivityRiskIndicator toRiskIndicator(Map<String, Object> values) {
+        return new ActivityRiskIndicator(
+                String.valueOf(values.get("ruleName")),
+                String.valueOf(values.get("severity")),
+                new BigDecimal(String.valueOf(values.get("scoreContribution")))
+        );
     }
 }

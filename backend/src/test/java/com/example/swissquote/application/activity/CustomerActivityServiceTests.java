@@ -43,7 +43,8 @@ class CustomerActivityServiceTests {
                         Instant.parse("2026-09-04T12:00:00Z"),
                         "Merchant 001",
                         "Credit",
-                        "PAN ****1234, MCC 5411"
+                        "PAN ****1234, MCC 5411",
+                        List.of()
                 )),
                 new CustomerActivityPage(100, 0, 1, false, 1)
         );

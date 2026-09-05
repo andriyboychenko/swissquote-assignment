@@ -1,9 +1,15 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fetchCustomerAiAnalyses, requestCustomerAiAnalysis } from "../api/aiAnalysesApi";
 import { fetchCustomerActivities } from "../api/customerActivitiesApi";
 import { fetchCustomerSuggestions } from "../api/customerActivitiesApi";
 import { CustomerActivityDashboard } from "./CustomerActivityDashboard";
+
+vi.mock("../api/aiAnalysesApi", () => ({
+  fetchCustomerAiAnalyses: vi.fn(),
+  requestCustomerAiAnalysis: vi.fn()
+}));
 
 vi.mock("../api/customerActivitiesApi", () => ({
   fetchCustomerActivities: vi.fn(),
@@ -47,8 +53,23 @@ describe("CustomerActivityDashboard", () => {
     vi.useRealTimers();
     fetchCustomerActivities.mockReset();
     fetchCustomerSuggestions.mockReset();
+    fetchCustomerAiAnalyses.mockReset();
+    requestCustomerAiAnalysis.mockReset();
     fetchCustomerActivities.mockResolvedValue(activityReport);
     fetchCustomerSuggestions.mockResolvedValue([{ customerId: activityReport.customerId }]);
+    fetchCustomerAiAnalyses.mockResolvedValue([]);
+    requestCustomerAiAnalysis.mockResolvedValue({
+      analysisRequestId: "analysis-1",
+      customerId: activityReport.customerId,
+      status: "COMPLETED",
+      requestedAt: "2026-09-05T08:00:00Z",
+      result: {
+        riskLevel: "MEDIUM",
+        summary: "Reviewed 1 activity.",
+        recommendations: "Review the highlighted risk signals.",
+        evidence: []
+      }
+    });
   });
 
   it("loads and renders customer activity after search", async () => {
@@ -70,6 +91,7 @@ describe("CustomerActivityDashboard", () => {
     }));
     expect(await screen.findByText(activityReport.customerId)).toBeInTheDocument();
     expect(screen.getByText("Merchant 001")).toBeInTheDocument();
+    expect(fetchCustomerAiAnalyses).toHaveBeenCalledWith(activityReport.customerId);
   });
 
   it("does not call the API without a customer id", () => {
@@ -189,6 +211,88 @@ describe("CustomerActivityDashboard", () => {
       }
     }));
     expect(await screen.findByText("DE00000000000000000001")).toBeInTheDocument();
+    expect(fetchCustomerAiAnalyses).toHaveBeenCalledOnce();
+  });
+
+  it("requests AI analysis for the loaded customer", async () => {
+    render(<CustomerActivityDashboard />);
+
+    fireEvent.change(screen.getByLabelText("Customer ID"), {
+      target: { value: activityReport.customerId }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    await screen.findByText("No AI analysis has been requested for this customer yet.");
+    fireEvent.click(screen.getByRole("button", { name: "Request AI analysis" }));
+
+    await waitFor(() => expect(requestCustomerAiAnalysis).toHaveBeenCalledWith(activityReport.customerId));
+    expect(await screen.findByText("Risk: MEDIUM")).toBeInTheDocument();
+    expect(screen.getByText("Reviewed 1 activity.")).toBeInTheDocument();
+  });
+
+  it("applies recommended flagged activity filters from the AI review", async () => {
+    render(<CustomerActivityDashboard />);
+
+    fireEvent.change(screen.getByLabelText("Customer ID"), {
+      target: { value: activityReport.customerId }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    await screen.findByText("No AI analysis has been requested for this customer yet.");
+    fireEvent.click(screen.getByRole("button", { name: "Request AI analysis" }));
+    await screen.findByText("Risk: MEDIUM");
+    fireEvent.click(screen.getByRole("button", { name: /Review flagged activity/ }));
+
+    await waitFor(() => expect(fetchCustomerActivities).toHaveBeenCalledWith(activityReport.customerId, {
+      limit: 50,
+      offset: 0,
+      filters: expect.objectContaining({
+        riskOnly: true
+      }),
+      sort: {
+        sortBy: "amount",
+        sortDirection: "DESC"
+      }
+    }));
+    expect(screen.getByLabelText("Flagged activity only")).toBeChecked();
+  });
+
+  it("applies recommended flagged activity filters with the keyboard shortcut", async () => {
+    requestCustomerAiAnalysis.mockResolvedValue({
+      analysisRequestId: "analysis-1",
+      customerId: activityReport.customerId,
+      status: "COMPLETED",
+      requestedAt: "2026-09-05T08:00:00Z",
+      result: {
+        riskLevel: "HIGH",
+        summary: "Reviewed 1 activity.",
+        recommendations: "Escalate and review flagged activity.",
+        evidence: []
+      }
+    });
+    render(<CustomerActivityDashboard />);
+
+    fireEvent.change(screen.getByLabelText("Customer ID"), {
+      target: { value: activityReport.customerId }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    await screen.findByText("No AI analysis has been requested for this customer yet.");
+    fireEvent.click(screen.getByRole("button", { name: "Request AI analysis" }));
+    await screen.findByText("Risk: HIGH");
+    fireEvent.keyDown(window, { key: "r", altKey: true });
+
+    await waitFor(() => expect(fetchCustomerActivities).toHaveBeenCalledWith(activityReport.customerId, {
+      limit: 50,
+      offset: 0,
+      filters: expect.objectContaining({
+        riskOnly: true
+      }),
+      sort: {
+        sortBy: "amount",
+        sortDirection: "DESC"
+      }
+    }));
   });
 
   it("reloads the first page when filters or sorting change", async () => {

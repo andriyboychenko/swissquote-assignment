@@ -29,7 +29,7 @@ export function AuthenticationNotice({ operatorName }) {
     <section className="auth-notice" aria-labelledby="auth-notice-title">
       <div className="auth-notice-header">
         <div>
-          <h2 id="auth-notice-title">Disclaimer</h2>
+          <h2 id="auth-notice-title">Note</h2>
         </div>
         <button className="notice-toggle" type="button" onClick={handleToggleMinimized}>
           {isMinimized ? "Show" : "Hide"}

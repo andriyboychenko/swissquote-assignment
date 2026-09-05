@@ -18,7 +18,7 @@ describe("AuthSuccessPage", () => {
   it("renders the demo access disclaimer, operator menu, and customer dashboard", () => {
     render(<AuthSuccessPage operatorName="Demo Operator" />);
 
-    expect(screen.getByRole("heading", { name: "Disclaimer" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Note" })).toBeInTheDocument();
     expect(screen.getByText("Welcome, Demo Operator")).toBeInTheDocument();
     expect(screen.getByText(/Since this is a demo/)).toBeInTheDocument();
     expect(screen.getByText(/accepted by a moderator/)).toBeInTheDocument();

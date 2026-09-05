@@ -21,7 +21,7 @@ describe("AuthenticationNotice", () => {
   it("renders the full authentication notice by default", () => {
     render(<AuthenticationNotice operatorName="Demo Operator" />);
 
-    expect(screen.getByRole("heading", { name: "Disclaimer" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Note" })).toBeInTheDocument();
     expect(screen.getByText("Welcome, Demo Operator")).toBeInTheDocument();
     expect(screen.getByText(/Since this is a demo/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Hide" })).toBeInTheDocument();
@@ -34,7 +34,7 @@ describe("AuthenticationNotice", () => {
 
     expect(screen.queryByText("Welcome, Demo Operator")).not.toBeInTheDocument();
     expect(screen.queryByText(/Since this is a demo/)).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Disclaimer" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Note" })).toBeInTheDocument();
     expect(storage.get("swissquote-authentication-notice-minimized")).toBe("true");
   });
 
@@ -43,7 +43,7 @@ describe("AuthenticationNotice", () => {
 
     render(<AuthenticationNotice operatorName="Demo Operator" />);
 
-    expect(screen.getByRole("heading", { name: "Disclaimer" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Note" })).toBeInTheDocument();
     expect(screen.queryByText("Welcome, Demo Operator")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Show" })).toBeInTheDocument();
   });

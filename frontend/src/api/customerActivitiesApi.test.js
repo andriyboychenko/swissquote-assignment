@@ -51,7 +51,8 @@ describe("fetchCustomerActivities", () => {
         currency: "CHF",
         counterparty: "Merchant",
         channel: "Credit",
-        detail: "PAN"
+        detail: "PAN",
+        riskOnly: true
       },
       sort: {
         sortBy: "amount",
@@ -60,7 +61,7 @@ describe("fetchCustomerActivities", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/customers/customer-1/activities?limit=50&offset=0&createdFrom=2026-09-01T00%3A00%3A00.000Z&createdTo=2026-09-05T00%3A00%3A00.000Z&activityType=CARD&status=Completed&amountMin=10&amountMax=200&currency=CHF&counterparty=Merchant&channel=Credit&detail=PAN&sortBy=amount&sortDirection=ASC",
+      "/api/customers/customer-1/activities?limit=50&offset=0&createdFrom=2026-09-01T00%3A00%3A00.000Z&createdTo=2026-09-05T00%3A00%3A00.000Z&activityType=CARD&status=Completed&amountMin=10&amountMax=200&currency=CHF&counterparty=Merchant&channel=Credit&detail=PAN&riskOnly=true&sortBy=amount&sortDirection=ASC",
       {
         credentials: "include"
       }

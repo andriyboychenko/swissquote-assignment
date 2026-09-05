@@ -17,7 +17,14 @@ describe("ActivityTable", () => {
             createdAt: "2026-09-04T12:00:00Z",
             counterparty: "Merchant 001",
             channel: "Credit",
-            detail: "PAN ****1234, MCC 5411, Decline: Insufficient funds"
+            detail: "PAN ****1234, MCC 5411, Decline: Insufficient funds",
+            riskIndicators: [
+              {
+                ruleName: "High-value card transaction",
+                severity: "HIGH",
+                scoreContribution: 20
+              }
+            ]
           },
           {
             transactionId: "transaction-2",
@@ -28,7 +35,8 @@ describe("ActivityTable", () => {
             createdAt: "2026-09-04T13:00:00Z",
             counterparty: "DE00000000000000000001",
             channel: "SWIFT",
-            detail: "Receiver country DE"
+            detail: "Receiver country DE",
+            riskIndicators: []
           },
           {
             transactionId: "transaction-3",
@@ -39,7 +47,8 @@ describe("ActivityTable", () => {
             createdAt: "2026-09-04T14:00:00Z",
             counterparty: "Merchant 002",
             channel: "Debit",
-            detail: "PAN ****4321, MCC 5411"
+            detail: "PAN ****4321, MCC 5411",
+            riskIndicators: []
           }
         ]}
         hasMore={false}
@@ -70,6 +79,8 @@ describe("ActivityTable", () => {
     );
     expect(screen.getByText("PAN ****1234, MCC 5411")).toBeInTheDocument();
     expect(screen.getByText("Decline: Insufficient funds")).toHaveClass("decline-detail");
+    expect(screen.getByLabelText("Suspicious activity")).toBeInTheDocument();
+    expect(screen.getByText("Merchant 001").closest("tr")).toHaveClass("activity-row-suspicious");
   });
 
   it("marks completed debit card activity as outgoing", () => {
@@ -85,7 +96,8 @@ describe("ActivityTable", () => {
             createdAt: "2026-09-04T12:00:00Z",
             counterparty: "Merchant 001",
             channel: "Debit",
-            detail: "PAN ****1234, MCC 5411"
+            detail: "PAN ****1234, MCC 5411",
+            riskIndicators: []
           }
         ]}
         hasMore={false}
@@ -117,7 +129,8 @@ describe("ActivityTable", () => {
             createdAt: "2026-09-04T12:00:00Z",
             counterparty: "CH00000000000000000001",
             channel: "SWIFT",
-            detail: "Receiver country CH"
+            detail: "Receiver country CH",
+            riskIndicators: []
           }
         ]}
         hasMore={false}

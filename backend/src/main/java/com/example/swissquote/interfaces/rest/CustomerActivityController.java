@@ -41,6 +41,7 @@ public class CustomerActivityController {
             @RequestParam(required = false) String counterparty,
             @RequestParam(required = false) String channel,
             @RequestParam(required = false) String detail,
+            @RequestParam(defaultValue = "false") boolean riskOnly,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") SortDirection sortDirection
     ) {
@@ -55,7 +56,8 @@ public class CustomerActivityController {
                         currency,
                         counterparty,
                         channel,
-                        detail
+                        detail,
+                        riskOnly
                 ),
                 new CustomerActivitySort(sortBy, sortDirection)
         );

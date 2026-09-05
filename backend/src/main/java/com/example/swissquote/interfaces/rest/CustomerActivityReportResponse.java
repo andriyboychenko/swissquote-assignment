@@ -75,7 +75,8 @@ public record CustomerActivityReportResponse(
             Instant createdAt,
             String counterparty,
             String channel,
-            String detail
+            String detail,
+            List<ActivityRiskIndicatorResponse> riskIndicators
     ) {
 
         static CustomerActivityResponse fromDomain(CustomerActivity activity) {
@@ -88,7 +89,27 @@ public record CustomerActivityReportResponse(
                     activity.createdAt(),
                     activity.counterparty(),
                     activity.channel(),
-                    activity.detail()
+                    activity.detail(),
+                    activity.riskIndicators().stream()
+                            .map(ActivityRiskIndicatorResponse::fromDomain)
+                            .toList()
+            );
+        }
+    }
+
+    public record ActivityRiskIndicatorResponse(
+            String ruleName,
+            String severity,
+            BigDecimal scoreContribution
+    ) {
+
+        static ActivityRiskIndicatorResponse fromDomain(
+                com.example.swissquote.domain.activity.ActivityRiskIndicator indicator
+        ) {
+            return new ActivityRiskIndicatorResponse(
+                    indicator.ruleName(),
+                    indicator.severity(),
+                    indicator.scoreContribution()
             );
         }
     }

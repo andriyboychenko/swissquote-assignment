@@ -2,6 +2,7 @@ package com.example.swissquote.domain.activity;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -14,7 +15,8 @@ public record CustomerActivity(
         Instant createdAt,
         String counterparty,
         String channel,
-        String detail
+        String detail,
+        List<ActivityRiskIndicator> riskIndicators
 ) {
 
     public CustomerActivity {
@@ -24,5 +26,6 @@ public record CustomerActivity(
         Objects.requireNonNull(currency, "currency must not be null");
         Objects.requireNonNull(status, "status must not be null");
         Objects.requireNonNull(createdAt, "createdAt must not be null");
+        riskIndicators = List.copyOf(Objects.requireNonNull(riskIndicators, "riskIndicators must not be null"));
     }
 }

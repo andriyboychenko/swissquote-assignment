@@ -1,0 +1,155 @@
+import React from "react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { AiAnalysisPanel } from "./AiAnalysisPanel";
+
+const completedAnalysis = {
+  analysisRequestId: "analysis-1",
+  status: "COMPLETED",
+  requestedAt: "2026-09-05T08:00:00Z",
+  result: {
+    riskLevel: "HIGH",
+    summary: "Reviewed 100 activities.",
+    recommendations: "Escalate to a senior operator.",
+    evidence: [
+      {
+        evidenceId: "evidence-1",
+        sourceReference: "policy://policies/customer-activity-risk-review-v1.md#operator-review-triggers",
+        excerpt: "Review high risk activity."
+      }
+    ]
+  }
+};
+
+describe("AiAnalysisPanel", () => {
+  it("renders an empty state and request action", () => {
+    const onRequestAnalysis = vi.fn();
+
+    render(
+      <AiAnalysisPanel
+        analyses={[]}
+        error=""
+        isLoading={false}
+        isRequesting={false}
+        onRequestAnalysis={onRequestAnalysis}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Request AI analysis" }));
+
+    expect(screen.getByText("No AI analysis has been requested for this customer yet.")).toBeInTheDocument();
+    expect(onRequestAnalysis).toHaveBeenCalledOnce();
+  });
+
+  it("renders latest completed analysis and evidence", () => {
+    render(
+      <AiAnalysisPanel
+        analyses={[completedAnalysis]}
+        error=""
+        isLoading={false}
+        isRequesting={false}
+        onRequestAnalysis={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Risk: HIGH")).toHaveClass("risk-high");
+    expect(screen.getByText("Reviewed 100 activities.")).toBeInTheDocument();
+    expect(screen.getByText("Escalate to a senior operator.")).toBeInTheDocument();
+    expect(screen.getByText("policy://policies/customer-activity-risk-review-v1.md#operator-review-triggers"))
+      .toBeInTheDocument();
+  });
+
+  it("renders failed analysis status without result content", () => {
+    render(
+      <AiAnalysisPanel
+        analyses={[
+          {
+            analysisRequestId: "analysis-2",
+            status: "FAILED",
+            requestedAt: "2026-09-05T09:00:00Z",
+            failureReason: "Model provider unavailable",
+            result: null
+          }
+        ]}
+        error=""
+        isLoading={false}
+        isRequesting={false}
+        onRequestAnalysis={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Status: FAILED")).toHaveClass("status-failed");
+    expect(screen.getByText("Model provider unavailable")).toBeInTheDocument();
+  });
+
+  it("loads previous analysis history into the main review area", () => {
+    render(
+      <AiAnalysisPanel
+        analyses={[
+          completedAnalysis,
+          {
+            ...completedAnalysis,
+            analysisRequestId: "analysis-previous",
+            status: "RUNNING",
+            requestedAt: "2026-09-04T11:30:00Z",
+            result: {
+              ...completedAnalysis.result,
+              riskLevel: "MEDIUM",
+              summary: "Previous saved analysis."
+            }
+          }
+        ]}
+        error=""
+        isLoading={false}
+        isRequesting={false}
+        onRequestAnalysis={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Previous analyses")).toBeInTheDocument();
+    expect(within(screen.getByText("Previous analyses").closest(".analysis-history")).getByText("RUNNING"))
+      .toBeInTheDocument();
+    expect(screen.getByText(/4 Sept 2026/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "View" }));
+
+    expect(screen.getByText("Previous saved analysis.")).toBeInTheDocument();
+    expect(screen.getByText("Risk: MEDIUM")).toHaveClass("risk-medium");
+    expect(screen.getByRole("button", { name: "Show latest analysis" })).toBeInTheDocument();
+  });
+
+  it("shows five previous analyses by default and can reveal the rest", () => {
+    const analyses = [
+      completedAnalysis,
+      ...Array.from({ length: 7 }, (_, index) => ({
+        ...completedAnalysis,
+        analysisRequestId: `analysis-history-${index + 1}`,
+        status: "COMPLETED",
+        requestedAt: `2026-09-0${index + 1}T10:00:00Z`,
+        result: {
+          ...completedAnalysis.result,
+          summary: `Previous saved analysis ${index + 1}.`
+        }
+      }))
+    ];
+
+    render(
+      <AiAnalysisPanel
+        analyses={analyses}
+        error=""
+        isLoading={false}
+        isRequesting={false}
+        onRequestAnalysis={vi.fn()}
+      />
+    );
+
+    const history = screen.getByText("Previous analyses").closest(".analysis-history");
+
+    expect(within(history).getAllByRole("button", { name: "View" })).toHaveLength(5);
+    expect(within(history).getByRole("button", { name: "Show 2 more" })).toBeInTheDocument();
+
+    fireEvent.click(within(history).getByRole("button", { name: "Show 2 more" }));
+
+    expect(within(history).getAllByRole("button", { name: "View" })).toHaveLength(7);
+    expect(within(history).getByRole("button", { name: "Show fewer analyses" })).toBeInTheDocument();
+  });
+});

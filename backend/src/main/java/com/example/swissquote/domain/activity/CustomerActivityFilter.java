@@ -13,6 +13,7 @@ public record CustomerActivityFilter(
         String currency,
         String counterparty,
         String channel,
-        String detail
+        String detail,
+        boolean riskOnly
 ) {
 }

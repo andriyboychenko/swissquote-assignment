@@ -2,6 +2,7 @@ package com.example.swissquote.interfaces.rest;
 
 import com.example.swissquote.application.activity.CustomerActivityService;
 import com.example.swissquote.domain.activity.ActivityType;
+import com.example.swissquote.domain.activity.ActivityRiskIndicator;
 import com.example.swissquote.domain.activity.CustomerActivity;
 import com.example.swissquote.domain.activity.CustomerActivitySearchCriteria;
 import com.example.swissquote.domain.activity.CustomerActivityPage;
@@ -44,7 +45,12 @@ class CustomerActivityControllerTests {
                         Instant.parse("2026-09-04T12:00:00Z"),
                         "Merchant 001",
                         "Credit",
-                        "PAN ****1234, MCC 5411"
+                        "PAN ****1234, MCC 5411",
+                        java.util.List.of(new ActivityRiskIndicator(
+                                "High-value card transaction",
+                                "HIGH",
+                                BigDecimal.valueOf(20)
+                        ))
                 )),
                 new CustomerActivityPage(50, 0, 1, false, 1)
         ));
@@ -64,6 +70,7 @@ class CustomerActivityControllerTests {
                 "Merchant",
                 "Credit",
                 "PAN",
+                true,
                 "amount",
                 SortDirection.ASC
         );
@@ -76,6 +83,9 @@ class CustomerActivityControllerTests {
         assertThat(response.activities().getFirst().transactionId()).isEqualTo(transactionId);
         assertThat(response.activities().getFirst().activityType()).isEqualTo("CARD");
         assertThat(response.activities().getFirst().counterparty()).isEqualTo("Merchant 001");
+        assertThat(response.activities().getFirst().riskIndicators()).hasSize(1);
+        assertThat(response.activities().getFirst().riskIndicators().getFirst().ruleName())
+                .isEqualTo("High-value card transaction");
         ArgumentCaptor<CustomerActivitySearchCriteria> criteriaCaptor = ArgumentCaptor.forClass(CustomerActivitySearchCriteria.class);
         verify(service).getActivityReport(
                 org.mockito.ArgumentMatchers.eq(customerId),
@@ -94,6 +104,7 @@ class CustomerActivityControllerTests {
         assertThat(criteria.filter().counterparty()).isEqualTo("Merchant");
         assertThat(criteria.filter().channel()).isEqualTo("Credit");
         assertThat(criteria.filter().detail()).isEqualTo("PAN");
+        assertThat(criteria.filter().riskOnly()).isTrue();
         assertThat(criteria.sort().sortBy()).isEqualTo("amount");
         assertThat(criteria.sort().direction()).isEqualTo(SortDirection.ASC);
     }

@@ -273,6 +273,123 @@ SELECT
 FROM scored_transactions
 WHERE row_number % 2 = 0;
 
+--changeset andriy:0010-low-risk-demo-customer
+--comment Keep one known demo customer intentionally low risk for operator testing.
+DELETE FROM ai_analysis_evidence evidence
+USING ai_analysis_results result
+JOIN ai_analysis_requests request ON request.analysis_request_id = result.analysis_request_id
+WHERE evidence.analysis_result_id = result.analysis_result_id
+  AND request.customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484';
+
+DELETE FROM ai_analysis_results result
+USING ai_analysis_requests request
+WHERE result.analysis_request_id = request.analysis_request_id
+  AND request.customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484';
+
+DELETE FROM ai_analysis_requests
+WHERE customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484';
+
+DELETE FROM risk_assessments assessment
+USING transactions tx
+WHERE assessment.transaction_id = tx.transaction_id
+  AND tx.customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484';
+
+WITH low_risk_transactions AS (
+    SELECT
+        transaction_id,
+        ROW_NUMBER() OVER (ORDER BY created_at, transaction_id) AS row_number
+    FROM transactions
+    WHERE customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484'
+)
+UPDATE transactions tx
+SET
+    amount = ROUND((25 + (low_risk_transactions.row_number % 450))::NUMERIC, 2),
+    status = 'Completed',
+    risk_indicators = '[]'::jsonb
+FROM low_risk_transactions
+WHERE low_risk_transactions.transaction_id = tx.transaction_id;
+
+UPDATE card_activity
+SET decline_reason = NULL
+WHERE transaction_id IN (
+    SELECT transaction_id
+    FROM transactions
+    WHERE customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484'
+);
+
+--changeset andriy:0009-transaction-risk-indicators
+--comment Persist row-level risk indicators as JSONB metadata for customer activity review highlighting.
+ALTER TABLE transactions
+    ADD COLUMN risk_indicators JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+CREATE INDEX idx_transactions_risk_indicators ON transactions USING GIN (risk_indicators);
+
+WITH indicator_values AS (
+    SELECT
+        ra.transaction_id,
+        JSONB_AGG(
+            JSONB_BUILD_OBJECT(
+                'ruleName', rr.rule_name,
+                'severity', CASE
+                    WHEN ra.score_contribution >= 20 THEN 'HIGH'
+                    WHEN ra.score_contribution >= 12 THEN 'MEDIUM'
+                    ELSE 'LOW'
+                END,
+                'scoreContribution', ra.score_contribution
+            )
+            ORDER BY ra.score_contribution DESC, rr.rule_name ASC
+        ) AS risk_indicators
+    FROM risk_assessments ra
+    JOIN risk_rules rr ON rr.rule_id = ra.rule_id
+    GROUP BY ra.transaction_id
+)
+UPDATE transactions t
+SET risk_indicators = indicator_values.risk_indicators
+FROM indicator_values
+WHERE indicator_values.transaction_id = t.transaction_id;
+
+--changeset andriy:0008-ai-analysis-schema
+--comment Persist AI analysis requests, results, and RAG evidence for later operator review.
+CREATE TABLE ai_analysis_requests (
+    analysis_request_id UUID PRIMARY KEY,
+    customer_id UUID NOT NULL REFERENCES customers(customer_id),
+    requested_by_operator_id UUID REFERENCES operator_users(operator_id),
+    status VARCHAR(20) NOT NULL,
+    requested_at TIMESTAMPTZ NOT NULL,
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    failure_reason TEXT
+);
+
+CREATE INDEX idx_ai_analysis_requests_customer_id ON ai_analysis_requests(customer_id);
+CREATE INDEX idx_ai_analysis_requests_requested_by_operator_id ON ai_analysis_requests(requested_by_operator_id);
+CREATE INDEX idx_ai_analysis_requests_status ON ai_analysis_requests(status);
+
+CREATE TABLE ai_analysis_results (
+    analysis_result_id UUID PRIMARY KEY,
+    analysis_request_id UUID NOT NULL UNIQUE REFERENCES ai_analysis_requests(analysis_request_id),
+    customer_id UUID NOT NULL REFERENCES customers(customer_id),
+    risk_level VARCHAR(20) NOT NULL,
+    summary TEXT NOT NULL,
+    recommendations TEXT NOT NULL,
+    model_name VARCHAR(120) NOT NULL,
+    prompt_version VARCHAR(40) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX idx_ai_analysis_results_customer_id ON ai_analysis_results(customer_id);
+
+CREATE TABLE ai_analysis_evidence (
+    evidence_id UUID PRIMARY KEY,
+    analysis_result_id UUID NOT NULL REFERENCES ai_analysis_results(analysis_result_id),
+    source_type VARCHAR(40) NOT NULL,
+    source_reference TEXT NOT NULL,
+    excerpt TEXT NOT NULL,
+    relevance_score NUMERIC(6, 4) NOT NULL
+);
+
+CREATE INDEX idx_ai_analysis_evidence_analysis_result_id ON ai_analysis_evidence(analysis_result_id);
+
 --changeset andriy:0005-more-demo-risk-rules
 --comment Additional demo risk rules for richer operator analytics examples.
 INSERT INTO risk_rules (rule_id, rule_name, applies_to, threshold_logic, weight)
