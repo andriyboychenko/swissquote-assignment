@@ -133,4 +133,21 @@ class LiquibaseChangelogTests {
             assertThat(changelog).contains("DROP TABLE IF EXISTS market_quote");
         }
     }
+
+    @Test
+    void masterChangelogRebuildsDemoActivityDataWithCustomerVariation() throws IOException {
+        try (InputStream inputStream = getClass().getResourceAsStream("/db/changelog/db.changelog-master.sql")) {
+            assertThat(inputStream).isNotNull();
+
+            String changelog = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertThat(changelog).contains("--changeset andriy:0007-randomized-demo-activity-data");
+            assertThat(changelog).contains("DELETE FROM transactions");
+            assertThat(changelog).contains("MD5('type-' || customer_number || '-' || activity_number)");
+            assertThat(changelog).contains("MD5('status-' || customer_number || '-' || activity_number)");
+            assertThat(changelog).contains("CASE status_bucket % 12");
+            assertThat(changelog).contains("FROM GENERATE_SERIES(1, 100) AS customer_number");
+            assertThat(changelog).contains("CROSS JOIN GENERATE_SERIES(1, 100) AS activity_number");
+        }
+    }
 }

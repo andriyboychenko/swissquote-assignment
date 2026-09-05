@@ -4,7 +4,7 @@ import com.example.swissquote.domain.auth.OperatorAccount;
 
 import java.util.Optional;
 
-public interface OperatorAccountStore {
+public interface OperatorAccountRepository {
 
     Optional<OperatorAccount> findByProviderAndSubjectHash(String provider, String providerSubjectHash);
 

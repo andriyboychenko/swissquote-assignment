@@ -42,6 +42,13 @@ These rules apply to future coding work in this repository.
 - `component-small-focused`: Keep components small and focused on one rendering responsibility. Extract child components when a component starts mixing unrelated UI concerns.
 - `props-explicit-no-rest-bags`: Prefer explicit, named props. Avoid open-ended rest parameter bags such as `...params` or `...props` unless forwarding DOM attributes is an intentional, documented component contract.
 - `legal-copy-kept-current`: Keep Privacy & Data and Terms & Conditions UI copy updated whenever authentication, persisted data, AI analysis, access control, or customer activity handling changes.
+- `operator-dashboard-first`: For authenticated operator workflows, prioritize dense, scannable dashboard surfaces with clear search, loading, empty, error, summary, and tabular review states over marketing-style layouts.
+- `nonblocking-notices`: Keep authenticated dashboard notices compact, dismissible or minimizable when appropriate, and persist user preference for non-critical repeated notices.
+- `search-autocomplete`: For ID-heavy operator search, provide backend-backed autocomplete with minimum input length, bounded result limits, keyboard/mouse selection where practical, and clear no-result/loading states.
+- `table-filter-types`: Match table filters to field types: date/time ranges for timestamps, selects for known finite values, numeric ranges for amounts, and text inputs for free-form text.
+- `table-server-querying`: For lazily loaded tables, apply filtering and sorting server-side so every loaded page follows the same query.
+- `table-collapsible-filters`: Make dense filter panels minimizable and keep a visible title/control to restore them.
+- `financial-movement-indicators`: Use both sign and color for amount movement. Keep pending/provisional activity visually distinct from settled incoming/outgoing movement.
 
 ## Java 17+ And Spring Boot 3 Rules
 
@@ -57,6 +64,7 @@ These rules apply to future coding work in this repository.
 - Use constructor injection with final fields for Spring components. Avoid field injection.
 - Centralize REST errors with `@RestControllerAdvice` returning RFC 7807 `ProblemDetail`.
 - Do not expose raw JPA entity graphs directly from REST APIs. Map entities to DTO records.
+- Search/read endpoints should use read-only transactions and projection-style queries or DTO mapping so UI workflows do not accidentally expose persistence internals.
 
 ### Backend Package Organization
 
@@ -73,6 +81,7 @@ These rules apply to future coding work in this repository.
 - `solid-liskov`: Subtypes must preserve the behavior expected by their abstractions.
 - `solid-interface-segregation`: Prefer small role-specific interfaces over wide service contracts.
 - `solid-dependency-inversion`: Application services should depend on domain/application ports, not concrete infrastructure classes.
+- `customer-search-extension`: Keep customer search as its own application capability, separate from activity review, so future search backends such as a dedicated index can be added behind the repository interface.
 - `patterns-strategy-for-rules`: Use the Strategy pattern for extensible business rules, scoring, validations, and transaction activity handling.
 - `patterns-factory-for-creation`: Use factories for non-trivial object creation when construction rules vary by type.
 - `patterns-template-method-carefully`: Use Template Method only when shared algorithm steps are stable and variation points are clear.

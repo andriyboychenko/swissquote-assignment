@@ -289,3 +289,215 @@ VALUES
 --changeset andriy:0006-drop-legacy-market-quote
 --comment Remove leftover quote-demo table from older local database volumes.
 DROP TABLE IF EXISTS market_quote;
+
+--changeset andriy:0007-randomized-demo-activity-data
+--comment Rebuild demo customer activity with deterministic per-customer variation in activity type and status.
+DELETE FROM risk_assessments;
+DELETE FROM card_activity;
+DELETE FROM payment_activity;
+DELETE FROM crypto_activity;
+DELETE FROM transactions;
+DELETE FROM customers;
+
+WITH generated_customers AS (
+    SELECT
+        customer_number,
+        (
+            SUBSTRING(MD5('customer-' || customer_number), 1, 8) || '-' ||
+            SUBSTRING(MD5('customer-' || customer_number), 9, 4) || '-' ||
+            SUBSTRING(MD5('customer-' || customer_number), 13, 4) || '-' ||
+            SUBSTRING(MD5('customer-' || customer_number), 17, 4) || '-' ||
+            SUBSTRING(MD5('customer-' || customer_number), 21, 12)
+        )::UUID AS customer_id
+    FROM GENERATE_SERIES(1, 100) AS customer_number
+)
+INSERT INTO customers (customer_id)
+SELECT customer_id
+FROM generated_customers;
+
+WITH generated_transactions AS (
+    SELECT
+        customer_number,
+        activity_number,
+        ASCII(SUBSTRING(MD5('type-' || customer_number || '-' || activity_number), 1, 1)) AS type_bucket,
+        ASCII(SUBSTRING(MD5('status-' || customer_number || '-' || activity_number), 1, 1)) AS status_bucket,
+        ASCII(SUBSTRING(MD5('amount-' || customer_number || '-' || activity_number), 1, 1)) AS amount_bucket,
+        (
+            SUBSTRING(MD5('customer-' || customer_number), 1, 8) || '-' ||
+            SUBSTRING(MD5('customer-' || customer_number), 9, 4) || '-' ||
+            SUBSTRING(MD5('customer-' || customer_number), 13, 4) || '-' ||
+            SUBSTRING(MD5('customer-' || customer_number), 17, 4) || '-' ||
+            SUBSTRING(MD5('customer-' || customer_number), 21, 12)
+        )::UUID AS customer_id,
+        (
+            SUBSTRING(MD5('transaction-' || customer_number || '-' || activity_number), 1, 8) || '-' ||
+            SUBSTRING(MD5('transaction-' || customer_number || '-' || activity_number), 9, 4) || '-' ||
+            SUBSTRING(MD5('transaction-' || customer_number || '-' || activity_number), 13, 4) || '-' ||
+            SUBSTRING(MD5('transaction-' || customer_number || '-' || activity_number), 17, 4) || '-' ||
+            SUBSTRING(MD5('transaction-' || customer_number || '-' || activity_number), 21, 12)
+        )::UUID AS transaction_id
+    FROM GENERATE_SERIES(1, 100) AS customer_number
+    CROSS JOIN GENERATE_SERIES(1, 100) AS activity_number
+),
+typed_transactions AS (
+    SELECT
+        customer_number,
+        activity_number,
+        amount_bucket,
+        status_bucket,
+        customer_id,
+        transaction_id,
+        CASE type_bucket % 3
+            WHEN 0 THEN 'CARD'::activity_type
+            WHEN 1 THEN 'PAYMENT'::activity_type
+            ELSE 'CRYPTO'::activity_type
+        END AS activity_type
+    FROM generated_transactions
+)
+INSERT INTO transactions (transaction_id, customer_id, activity_type, amount, currency, status, created_at)
+SELECT
+    transaction_id,
+    customer_id,
+    activity_type,
+    ROUND((((customer_number * 113) + (activity_number * 29) + (amount_bucket * 17)) % 35000 + 10)::NUMERIC, 2),
+    CASE activity_type
+        WHEN 'CRYPTO' THEN CASE (amount_bucket + activity_number) % 4 WHEN 0 THEN 'BTC' WHEN 1 THEN 'ETH' WHEN 2 THEN 'USDC' ELSE 'SOL' END
+        ELSE CASE (amount_bucket + customer_number + activity_number) % 5 WHEN 0 THEN 'CHF' WHEN 1 THEN 'EUR' WHEN 2 THEN 'USD' WHEN 3 THEN 'GBP' ELSE 'JPY' END
+    END,
+    CASE status_bucket % 12
+        WHEN 0 THEN 'Failed'
+        WHEN 1 THEN 'Pending'
+        WHEN 2 THEN 'Reversed'
+        ELSE 'Completed'
+    END,
+    TIMESTAMPTZ '2026-01-01 00:00:00+00' + (((customer_number * 137) + (activity_number * 23) + status_bucket) * INTERVAL '11 minutes')
+FROM typed_transactions;
+
+WITH card_transactions AS (
+    SELECT
+        transaction_id,
+        status,
+        ROW_NUMBER() OVER (ORDER BY customer_id, transaction_id) AS row_number
+    FROM transactions
+    WHERE activity_type = 'CARD'
+)
+INSERT INTO card_activity (
+    transaction_id,
+    card_pan,
+    card_type,
+    merchant_name,
+    mcc_code,
+    card_present,
+    authorization_code,
+    decline_reason
+)
+SELECT
+    transaction_id,
+    '****' || LPAD((1000 + (row_number % 9000))::TEXT, 4, '0'),
+    CASE row_number % 3 WHEN 0 THEN 'Debit' WHEN 1 THEN 'Credit' ELSE 'Prepaid' END,
+    CASE row_number % 6
+        WHEN 0 THEN 'Market Lane'
+        WHEN 1 THEN 'Cloud Travel'
+        WHEN 2 THEN 'Alpine Pharmacy'
+        WHEN 3 THEN 'Metro Fuel'
+        WHEN 4 THEN 'Global Electronics'
+        ELSE 'Harbor Hotel'
+    END || ' ' || LPAD((row_number % 300)::TEXT, 3, '0'),
+    LPAD((5000 + (row_number % 400))::TEXT, 4, '0'),
+    row_number % 3 <> 0,
+    'AUTH' || LPAD(row_number::TEXT, 8, '0'),
+    CASE WHEN status = 'Failed' THEN CASE row_number % 3 WHEN 0 THEN 'Insufficient funds' WHEN 1 THEN 'Suspected fraud' ELSE 'Issuer unavailable' END ELSE NULL END
+FROM card_transactions;
+
+WITH payment_transactions AS (
+    SELECT
+        transaction_id,
+        ROW_NUMBER() OVER (ORDER BY customer_id, transaction_id) AS row_number
+    FROM transactions
+    WHERE activity_type = 'PAYMENT'
+)
+INSERT INTO payment_activity (
+    transaction_id,
+    payment_method,
+    sender_account,
+    receiver_account,
+    receiver_bank_country
+)
+SELECT
+    transaction_id,
+    CASE row_number % 4 WHEN 0 THEN 'ACH' WHEN 1 THEN 'Wire' WHEN 2 THEN 'SWIFT' ELSE 'P2P' END,
+    'CH' || LPAD(row_number::TEXT, 19, '0'),
+    CASE row_number % 4 WHEN 0 THEN 'DE' WHEN 1 THEN 'FR' WHEN 2 THEN 'GB' ELSE 'US' END || LPAD((row_number + 100000)::TEXT, 20, '0'),
+    CASE row_number % 8 WHEN 0 THEN 'CH' WHEN 1 THEN 'DE' WHEN 2 THEN 'FR' WHEN 3 THEN 'GB' WHEN 4 THEN 'US' WHEN 5 THEN 'SG' WHEN 6 THEN 'AE' ELSE 'BR' END
+FROM payment_transactions;
+
+WITH crypto_transactions AS (
+    SELECT
+        transaction_id,
+        ROW_NUMBER() OVER (ORDER BY customer_id, transaction_id) AS row_number
+    FROM transactions
+    WHERE activity_type = 'CRYPTO'
+)
+INSERT INTO crypto_activity (
+    transaction_id,
+    blockchain,
+    wallet_address_from,
+    wallet_address_to,
+    tx_hash,
+    exchange_name
+)
+SELECT
+    transaction_id,
+    CASE row_number % 5 WHEN 0 THEN 'BTC' WHEN 1 THEN 'ETH' WHEN 2 THEN 'SOL' WHEN 3 THEN 'XRP' ELSE 'USDC' END,
+    'wallet-from-' || MD5('from-' || row_number || '-' || transaction_id),
+    'wallet-to-' || MD5('to-' || row_number || '-' || transaction_id),
+    MD5('tx-' || row_number || '-' || transaction_id) || MD5('hash-' || row_number),
+    CASE row_number % 5 WHEN 0 THEN 'Swissquote' WHEN 1 THEN 'Coinbase' WHEN 2 THEN 'Kraken' WHEN 3 THEN 'Binance' ELSE NULL END
+FROM crypto_transactions;
+
+WITH scored_transactions AS (
+    SELECT
+        transaction_id,
+        activity_type,
+        status,
+        amount,
+        ROW_NUMBER() OVER (ORDER BY created_at, transaction_id) AS row_number
+    FROM transactions
+    WHERE status IN ('Failed', 'Reversed')
+       OR amount >= 10000
+       OR activity_type = 'CRYPTO'
+)
+INSERT INTO risk_assessments (
+    assessment_id,
+    transaction_id,
+    rule_id,
+    triggered_at,
+    score_contribution
+)
+SELECT
+    (
+        SUBSTRING(MD5('assessment-randomized-' || transaction_id), 1, 8) || '-' ||
+        SUBSTRING(MD5('assessment-randomized-' || transaction_id), 9, 4) || '-' ||
+        SUBSTRING(MD5('assessment-randomized-' || transaction_id), 13, 4) || '-' ||
+        SUBSTRING(MD5('assessment-randomized-' || transaction_id), 17, 4) || '-' ||
+        SUBSTRING(MD5('assessment-randomized-' || transaction_id), 21, 12)
+    )::UUID,
+    transaction_id,
+    CASE
+        WHEN status IN ('Failed', 'Reversed') THEN '885be553-1447-42fd-b0d3-b8463c7813b4'::UUID
+        WHEN activity_type = 'CARD' AND amount >= 5000 THEN '1d16706c-8c4a-41b4-b99d-2e6f1e566003'::UUID
+        WHEN activity_type = 'CARD' THEN '3c8ee0aa-cf16-406d-a0e7-49dbf7466601'::UUID
+        WHEN activity_type = 'PAYMENT' AND amount >= 25000 THEN 'a6d547bb-9ae1-4e6a-aa2f-8cfaa1186004'::UUID
+        WHEN activity_type = 'PAYMENT' THEN 'c8692f01-167f-449d-9286-571f1c1f6f01'::UUID
+        WHEN activity_type = 'CRYPTO' AND amount >= 10000 THEN '27a67f38-d581-4015-b738-e468d8736007'::UUID
+        ELSE 'c41d73e7-3d8a-4f3d-bab4-b6054cf7957e'::UUID
+    END,
+    TIMESTAMPTZ '2026-01-01 00:00:00+00' + (row_number * INTERVAL '13 minutes'),
+    CASE
+        WHEN status IN ('Failed', 'Reversed') THEN 12.50
+        WHEN amount >= 25000 THEN 25.00
+        WHEN amount >= 10000 THEN 20.00
+        ELSE 10.00
+    END
+FROM scored_transactions
+WHERE row_number % 2 = 0;

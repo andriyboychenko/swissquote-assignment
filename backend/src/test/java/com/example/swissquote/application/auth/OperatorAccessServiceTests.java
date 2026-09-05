@@ -18,23 +18,23 @@ import static org.mockito.Mockito.when;
 
 class OperatorAccessServiceTests {
 
-    private final OperatorAccountStore store = mock(OperatorAccountStore.class);
+    private final OperatorAccountRepository repository = mock(OperatorAccountRepository.class);
     private final ProviderSubjectHasher hasher = new ProviderSubjectHasher();
     private final Clock clock = Clock.fixed(Instant.parse("2026-09-04T10:15:30Z"), ZoneOffset.UTC);
-    private final OperatorAccessService service = new OperatorAccessService(store, hasher, clock);
+    private final OperatorAccessService service = new OperatorAccessService(repository, hasher, clock);
 
     @Test
     void recordLoginCreatesPseudonymousOperatorForFirstLogin() {
-        when(store.findByProviderAndSubjectHash("google", hasher.hash("google", "subject-123")))
+        when(repository.findByProviderAndSubjectHash("google", hasher.hash("google", "subject-123")))
                 .thenReturn(Optional.empty());
-        when(store.save(any(OperatorAccount.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.save(any(OperatorAccount.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         OperatorAccess access = service.recordLogin("google", "subject-123");
 
         assertThat(access.provider()).isEqualTo("google");
         assertThat(access.blocked()).isFalse();
         assertThat(access.blockReason()).isNull();
-        verify(store).save(any(OperatorAccount.class));
+        verify(repository).save(any(OperatorAccount.class));
     }
 
     @Test
@@ -49,14 +49,14 @@ class OperatorAccessServiceTests {
                 Instant.parse("2026-09-03T10:15:30Z"),
                 Instant.parse("2026-09-03T10:15:30Z")
         );
-        when(store.findByProviderAndSubjectHash("google", subjectHash)).thenReturn(Optional.of(existingAccount));
-        when(store.save(any(OperatorAccount.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.findByProviderAndSubjectHash("google", subjectHash)).thenReturn(Optional.of(existingAccount));
+        when(repository.save(any(OperatorAccount.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         OperatorAccess access = service.recordLogin("google", "subject-123");
 
         assertThat(access.blocked()).isTrue();
         assertThat(access.blockReason()).isEqualTo("Pending moderator approval");
-        verify(store).save(existingAccount.recordLoginAt(Instant.parse("2026-09-04T10:15:30Z")));
+        verify(repository).save(existingAccount.recordLoginAt(Instant.parse("2026-09-04T10:15:30Z")));
     }
 
     @Test

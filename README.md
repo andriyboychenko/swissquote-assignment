@@ -14,7 +14,9 @@ The frontend is currently a static service overview. API calls can be added late
 
 Database schema changes are managed by Liquibase using formatted SQL changelogs under `backend/src/main/resources/db/changelog`.
 
-The initial database includes compact Liquibase demo data: 100 customers with 100 activities each, for 10,000 total customer activities split across card, payment, and crypto records. The seed data is generated with SQL ranges instead of a large committed data dump.
+Database entity classes are kept under `backend/src/main/java/com/example/swissquote/infrastructure/persistence/entity`. Current JPA entities are `CustomerEntity` for simple customer lookup/autocomplete and `OperatorUserEntity` for authenticated operator persistence. Customer search is isolated behind `CustomerSearchService` and `CustomerSearchRepository`, backed directly by `JpaCustomerRepository` today so it can be replaced by another search implementation later. The joined customer activity report still uses SQL projections through `JdbcCustomerActivityQueryAdapter`, so `transactions`, `card_activity`, `payment_activity`, `crypto_activity`, `risk_rules`, and `risk_assessments` do not have JPA entity classes yet.
+
+The initial database includes compact Liquibase demo data: 100 customers with 100 activities each, for 10,000 total customer activities split across card, payment, and crypto records. The seed data is generated with SQL ranges instead of a large committed data dump, and it uses deterministic variation so customers do not all share the same activity/status pattern.
 
 ## Requirements
 
@@ -51,6 +53,14 @@ Then open:
 - Backend health through gateway path: <http://localhost:3000/actuator/health>
 - Google login start path: <http://localhost:3000/oauth2/authorization/google>
 - PostgreSQL inside Docker network: `postgres:5432`
+
+After login, operators can search customer activity by Customer ID. The backend endpoint is:
+
+```text
+GET /api/customers/{customerId}/activities?limit=50&offset=0
+```
+
+Activity review supports server-side filtering and sorting through query parameters such as `createdFrom`, `createdTo`, `activityType`, `status`, `amountMin`, `amountMax`, `currency`, `counterparty`, `channel`, `detail`, `sortBy`, and `sortDirection`.
 
 ## Google Login Setup
 
@@ -131,6 +141,13 @@ Total activities: 10,000
 Activity types: card, payment, crypto
 Risk rules: 12 demo rules
 Risk assessments: deterministic subset for risky-looking activity
+Pagination: activity review returns 50 rows by default, caps requests at 100 rows, and loads additional rows on scroll
+```
+
+To fetch one demo customer ID from the running database:
+
+```bash
+docker compose --env-file gradle.properties exec -T postgres psql -U swissquote -d swissquote -c "SELECT customer_id FROM customers ORDER BY customer_id LIMIT 5;"
 ```
 
 To recreate the demo data from scratch, delete the PostgreSQL volume and start again:

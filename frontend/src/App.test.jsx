@@ -8,6 +8,10 @@ vi.mock("./api/authApi", () => ({
   fetchCurrentOperator: vi.fn()
 }));
 
+vi.mock("./api/customerActivitiesApi", () => ({
+  fetchCustomerActivities: vi.fn()
+}));
+
 describe("App", () => {
   beforeEach(() => {
     fetchCurrentOperator.mockResolvedValue({ authenticated: false });
@@ -63,8 +67,10 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("heading", { name: "Welcome, Demo Operator" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Disclaimer" })).toBeInTheDocument();
+    expect(screen.getByText("Welcome, Demo Operator")).toBeInTheDocument();
     expect(screen.getByText(/all authenticated users have access/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Search activity by Customer ID" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Logout" })).toHaveAttribute("href", "/logout");
   });
 });

@@ -1,5 +1,6 @@
 package com.example.swissquote.infrastructure.persistence;
 
+import com.example.swissquote.infrastructure.persistence.entity.OperatorUserEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

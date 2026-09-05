@@ -1,17 +1,18 @@
 package com.example.swissquote.infrastructure.persistence;
 
-import com.example.swissquote.application.auth.OperatorAccountStore;
+import com.example.swissquote.application.auth.OperatorAccountRepository;
 import com.example.swissquote.domain.auth.OperatorAccount;
+import com.example.swissquote.infrastructure.persistence.entity.OperatorUserEntity;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
 @Repository
-public class OperatorAccountStoreAdapter implements OperatorAccountStore {
+public class OperatorAccountRepositoryAdapter implements OperatorAccountRepository {
 
     private final JpaOperatorUserRepository repository;
 
-    public OperatorAccountStoreAdapter(JpaOperatorUserRepository repository) {
+    public OperatorAccountRepositoryAdapter(JpaOperatorUserRepository repository) {
         this.repository = repository;
     }
 

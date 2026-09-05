@@ -1,4 +1,4 @@
-package com.example.swissquote.infrastructure.persistence;
+package com.example.swissquote.infrastructure.persistence.entity;
 
 import com.example.swissquote.domain.auth.OperatorAccount;
 import jakarta.persistence.Column;
@@ -55,11 +55,11 @@ public class OperatorUserEntity {
         this.lastLoginAt = account.lastLoginAt();
     }
 
-    static OperatorUserEntity fromDomain(OperatorAccount account) {
+    public static OperatorUserEntity fromDomain(OperatorAccount account) {
         return new OperatorUserEntity(account);
     }
 
-    OperatorAccount toDomain() {
+    public OperatorAccount toDomain() {
         return new OperatorAccount(
                 operatorId,
                 provider,

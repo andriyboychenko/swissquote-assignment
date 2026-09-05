@@ -12,16 +12,16 @@ import java.util.Objects;
 @Service
 public class OperatorAccessService {
 
-    private final OperatorAccountStore operatorAccountStore;
+    private final OperatorAccountRepository operatorAccountRepository;
     private final ProviderSubjectHasher providerSubjectHasher;
     private final Clock clock;
 
     public OperatorAccessService(
-            OperatorAccountStore operatorAccountStore,
+            OperatorAccountRepository operatorAccountRepository,
             ProviderSubjectHasher providerSubjectHasher,
             Clock clock
     ) {
-        this.operatorAccountStore = operatorAccountStore;
+        this.operatorAccountRepository = operatorAccountRepository;
         this.providerSubjectHasher = providerSubjectHasher;
         this.clock = clock;
     }
@@ -33,12 +33,12 @@ public class OperatorAccessService {
 
         String subjectHash = providerSubjectHasher.hash(provider, subject);
         Instant now = Instant.now(clock);
-        OperatorAccount account = operatorAccountStore
+        OperatorAccount account = operatorAccountRepository
                 .findByProviderAndSubjectHash(provider, subjectHash)
                 .map(existingAccount -> existingAccount.recordLoginAt(now))
                 .orElseGet(() -> OperatorAccount.firstLogin(provider, subjectHash, now));
 
-        OperatorAccount savedAccount = operatorAccountStore.save(account);
+        OperatorAccount savedAccount = operatorAccountRepository.save(account);
         return new OperatorAccess(savedAccount.provider(), savedAccount.blocked(), savedAccount.blockReason());
     }
 }

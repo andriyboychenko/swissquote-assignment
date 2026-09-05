@@ -43,6 +43,43 @@ class BackendArchitectureTests {
     }
 
     @Test
+    void applicationPersistenceContractsUseRepositorySuffix() throws IOException {
+        Path applicationPath = ROOT_PACKAGE.resolve("application");
+        List<String> applicationFiles;
+        try (var files = Files.walk(applicationPath)) {
+            applicationFiles = files
+                    .filter(path -> path.getFileName().toString().endsWith(".java"))
+                    .map(path -> path.getFileName().toString())
+                    .toList();
+        }
+
+        assertThat(applicationFiles)
+                .noneMatch(fileName -> fileName.endsWith("Port.java"))
+                .noneMatch(fileName -> fileName.endsWith("Store.java"));
+        assertThat(applicationFiles).contains(
+                "CustomerActivityRepository.java",
+                "CustomerLookupRepository.java",
+                "CustomerSearchRepository.java",
+                "OperatorAccountRepository.java"
+        );
+    }
+
+    @Test
+    void jpaEntitiesLiveInExplicitEntityPackage() throws IOException {
+        List<Path> entityFiles;
+        try (var files = Files.walk(MAIN_JAVA)) {
+            entityFiles = files
+                    .filter(path -> path.getFileName().toString().endsWith(".java"))
+                    .filter(BackendArchitectureTests::containsJpaEntityAnnotation)
+                    .toList();
+        }
+
+        assertThat(entityFiles)
+                .isNotEmpty()
+                .allMatch(path -> path.toString().contains("/infrastructure/persistence/entity/"));
+    }
+
+    @Test
     void springComponentsDoNotUseFieldInjection() throws IOException {
         List<Path> filesWithFieldInjection;
         try (var files = Files.walk(MAIN_JAVA)) {
@@ -60,6 +97,14 @@ class BackendArchitectureTests {
     private static boolean containsAutowiredAnnotation(Path path) {
         try {
             return Files.readString(path).contains("@" + Autowired.class.getSimpleName());
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not inspect " + path, exception);
+        }
+    }
+
+    private static boolean containsJpaEntityAnnotation(Path path) {
+        try {
+            return Files.readString(path).contains("@Entity");
         } catch (IOException exception) {
             throw new IllegalStateException("Could not inspect " + path, exception);
         }
