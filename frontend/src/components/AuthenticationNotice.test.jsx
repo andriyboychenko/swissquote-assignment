@@ -24,6 +24,8 @@ describe("AuthenticationNotice", () => {
     expect(screen.getByRole("heading", { name: "Note" })).toBeInTheDocument();
     expect(screen.getByText("Welcome, Demo Operator")).toBeInTheDocument();
     expect(screen.getByText(/Since this is a demo/)).toBeInTheDocument();
+    expect(screen.getByText("These customer IDs may be useful for a demo:")).toBeInTheDocument();
+    expect(screen.getByText("005514e6-1ebe-8010-de91-aff66d1d9484")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Hide" })).toBeInTheDocument();
   });
 
@@ -34,6 +36,7 @@ describe("AuthenticationNotice", () => {
 
     expect(screen.queryByText("Welcome, Demo Operator")).not.toBeInTheDocument();
     expect(screen.queryByText(/Since this is a demo/)).not.toBeInTheDocument();
+    expect(screen.queryByText("These customer IDs may be useful for a demo:")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Note" })).toBeInTheDocument();
     expect(storage.get("swissquote-authentication-notice-minimized")).toBe("true");
   });

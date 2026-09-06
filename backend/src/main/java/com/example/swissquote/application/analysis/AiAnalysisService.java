@@ -53,12 +53,17 @@ public class AiAnalysisService {
     }
 
     @Transactional
-    public AiAnalysisRequest requestAnalysis(UUID customerId, String operatorProvider, String operatorSubject) {
+    public AiAnalysisRequest requestAnalysis(
+            UUID customerId,
+            String operatorProvider,
+            String operatorSubject,
+            String operatorDisplayName
+    ) {
         Objects.requireNonNull(customerId, "customerId must not be null");
         UUID operatorId = resolveOperatorId(operatorProvider, operatorSubject);
         Instant requestedAt = Instant.now(clock);
         AiAnalysisRequest pendingRequest = aiAnalysisRepository.save(
-                AiAnalysisRequest.pending(customerId, operatorId, requestedAt)
+                AiAnalysisRequest.pending(customerId, operatorId, normalizedDisplayName(operatorDisplayName), requestedAt)
         );
         AiAnalysisRequest runningRequest = aiAnalysisRepository.save(pendingRequest.running(requestedAt));
 
@@ -103,5 +108,9 @@ public class AiAnalysisService {
         return operatorAccountRepository.findByProviderAndSubjectHash(provider, subjectHash)
                 .map(OperatorAccount::operatorId)
                 .orElse(null);
+    }
+
+    private static String normalizedDisplayName(String operatorDisplayName) {
+        return operatorDisplayName == null || operatorDisplayName.isBlank() ? "Unknown operator" : operatorDisplayName.trim();
     }
 }

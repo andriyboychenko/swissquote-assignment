@@ -28,8 +28,10 @@ Read it before changing code, infrastructure, or tests.
 - `backend`: Spring Boot application built with Gradle.
 - `postgres`: PostgreSQL database with Liquibase-managed schema.
 - Google OAuth login starts at `/oauth2/authorization/google` and returns through `/login/oauth2/code/google`.
+- Mock demo login starts at `/mock-login?operator=analyst-one` when `MOCK_AUTH_ENABLED=true`; this is enabled by default only in the Docker demo configuration.
 - Liquibase seeds a compact demo dataset: 100 customers with 100 activities each, for 10,000 total card/payment/crypto activities and 12 demo risk rules. Demo activity types and statuses use deterministic per-customer variation.
 - Customer `005514e6-1ebe-8010-de91-aff66d1d9484` is intentionally kept low risk with no risk assessments or row risk indicators for predictable demo testing.
+- The first five documented demo customer IDs should remain predictable for presentations: 2 LOW risk examples, 2 MEDIUM risk examples, and 1 HIGH risk example.
 - Legacy quote-demo database objects such as `market_quote` are not part of the current domain and are removed through Liquibase cleanup changesets.
 - AI analysis is available as a persisted customer workflow. The first implementation uses a local deterministic analyzer and a generated Markdown policy corpus behind application interfaces; keep that boundary when replacing it with Spring AI, vector-store-backed RAG, Kafka workers, or external model providers.
 
@@ -56,10 +58,11 @@ Browser
 
 - `/oauth2/authorization/google`: starts Google OAuth login.
 - `/login/oauth2/code/google`: Google OAuth callback handled by Spring Security.
+- `/mock-login?operator={operator}`: starts a demo-only mock operator session when mock auth is enabled. Supported operators are `analyst-one` (Sarah Connor), `analyst-two` (Lisbeth Salander), and `risk-reviewer` (John McClane).
 - `/logout`: clears the Spring Security session.
 - `/api/auth/me`: returns the current operator session; anonymous users receive `authenticated=false`.
-- The load balancer and API gateway must route `/oauth2/`, `/login/`, and `/logout` to the backend.
-- Authenticated operators are persisted in `operator_users` with only provider name, a hashed provider subject, blocked status, block reason, and timestamps. Do not persist operator names, emails, or other personal profile data.
+- The load balancer and API gateway must route `/oauth2/`, `/login/`, `/mock-login`, and `/logout` to the backend.
+- Authenticated operators are persisted in `operator_users` with only provider name, a hashed provider subject, blocked status, block reason, and timestamps. AI analysis requests may persist `requested_by_operator_display_name` for audit attribution in saved reviews. Do not persist operator emails or broader personal profile data. Mock auth must use provider `mock` and still persist only a hashed subject in `operator_users`.
 
 ## Customer Activity Routes
 
@@ -78,9 +81,11 @@ Browser
 - `POST /api/customers/{customerId}/ai-analyses`: authenticated operator endpoint that creates an AI analysis request for the selected customer.
 - `GET /api/customers/{customerId}/ai-analyses`: authenticated operator endpoint that returns previously persisted analyses for later review.
 - Analysis state is persisted in `ai_analysis_requests.status`. Use `PENDING`, `RUNNING`, `COMPLETED`, and `FAILED` for both synchronous demo execution and future asynchronous worker execution.
+- Analysis request attribution is persisted in `ai_analysis_requests.requested_by_operator_display_name` and must be displayed with generated summaries and previous analyses.
 - Analysis output is persisted in `ai_analysis_results` with risk level, summary, recommendations, model name, prompt version, and result timestamp.
 - RAG/source attribution is persisted in `ai_analysis_evidence` so operators can see which policy snippets supported the answer.
 - Policy evidence links must be openable in the UI through `GET /api/policies/{documentName}/sections/{sectionAnchor}`.
+- Low-risk analyses with zero triggered risk signals should cite only standard-monitoring evidence, not review-trigger or specialized channel risk policy snippets.
 - The current `DeterministicAiAnalysisGenerator` and `DocumentPolicyKnowledgeRepository` are infrastructure adapters. Replace or extend them behind `AiAnalysisGenerator` and `PolicyKnowledgeRepository` when adding Spring AI and a real vector store.
 - Generated policy documents live under `backend/src/main/resources/policies`. Keep evidence `sourceReference` values aligned with real file names and section anchors.
 - If activity arrives through Kafka later, store raw customer activity in the existing activity tables first, then trigger analysis either on explicit operator request or through a separate analysis command/event. Keep Kafka offsets and processing state outside the customer activity tables; use request/status rows to make retries and UI status visible.
@@ -116,11 +121,15 @@ Browser
 - Add or update tests for UI behavior changes.
 - Keep landing-page Privacy & Data and Terms & Conditions modal copy aligned with changes to authentication, persisted data, customer activity handling, AI analysis, and access-control behavior.
 - Authenticated operator screens should use dense dashboard layouts with clear search, loading, error, empty, summary, and table states.
+- Mock demo login should open a chooser modal before redirecting to `/mock-login?operator={operator}` so demos can switch between supported operators.
 - Non-critical authenticated notices should stay compact and support persisted minimize/dismiss behavior so they do not block the operator workflow.
+- The authenticated `Note` should expose the first five seeded demo customer IDs for easier demos; avoid duplicating explanatory helper text below the search input or using a Customer ID title tooltip.
 - ID-heavy search fields should use backend-backed autocomplete with bounded limits, keyboard arrow/enter selection, and explicit loading/no-result states.
 - Large activity tables should page lazily, load 50 rows by default, and load more rows on scroll instead of rendering the full dataset at once.
-- AI recommendation actions may apply table filters directly, but they must reuse the same server-side filter/lazy-loading path as manual filters.
+- AI recommendation actions may apply table filters directly, but they must reuse the same server-side filter/lazy-loading path as manual filters and scroll to the table after applying filters.
 - Previous AI analyses should show at most five history rows by default and provide an explicit show-more control when more saved analyses exist.
+- Current and previous AI analyses should show the request date/time with the shared calendar/clock timestamp component, and status values should use the same labeled pill style across both areas.
+- The AI risk analysis panel should support hide/show behavior while keeping its title visible when collapsed.
 - Keep currency visible in the amount text, but do not duplicate it as a separate activity table column; currency must remain available as a filter and sort field while supported by the API.
 - Table filters should match the data type: date/time ranges for timestamps, selects for known enums/status-like fields, numeric ranges for amounts, and text inputs for free-text fields.
 - Dense filter panels should be minimized by default while keeping a visible title/control to restore them.

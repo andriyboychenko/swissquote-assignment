@@ -30,6 +30,7 @@ class AgentHarnessTests {
         assertThat(harness).contains("git push");
         assertThat(harness).contains("Auth Routes");
         assertThat(harness).contains("/oauth2/authorization/google");
+        assertThat(harness).contains("/mock-login?operator={operator}");
         assertThat(harness).contains("/api/auth/me");
         assertThat(harness).contains("Update this harness whenever");
     }

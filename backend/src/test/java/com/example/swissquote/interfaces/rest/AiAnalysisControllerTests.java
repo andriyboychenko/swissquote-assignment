@@ -7,6 +7,8 @@ import com.example.swissquote.domain.analysis.AiAnalysisStatus;
 import com.example.swissquote.domain.analysis.RiskLevel;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 
@@ -32,21 +34,41 @@ class AiAnalysisControllerTests {
         when(service.requestAnalysis(
                 org.mockito.ArgumentMatchers.eq(customerId),
                 org.mockito.ArgumentMatchers.eq("google"),
-                org.mockito.ArgumentMatchers.eq("subject-1")
+                org.mockito.ArgumentMatchers.eq("subject-1"),
+                org.mockito.ArgumentMatchers.eq("Demo Operator")
         )).thenReturn(request);
 
         AiAnalysisResponse response = controller.requestAnalysis(customerId, oauthToken());
 
         assertThat(response.analysisRequestId()).isEqualTo(request.analysisRequestId());
         assertThat(response.status()).isEqualTo("COMPLETED");
+        assertThat(response.requestedByOperatorDisplayName()).isEqualTo("Demo Operator");
         assertThat(response.result().riskLevel()).isEqualTo("HIGH");
         ArgumentCaptor<String> providerCaptor = ArgumentCaptor.forClass(String.class);
         verify(service).requestAnalysis(
                 org.mockito.ArgumentMatchers.eq(customerId),
                 providerCaptor.capture(),
-                org.mockito.ArgumentMatchers.eq("subject-1")
+                org.mockito.ArgumentMatchers.eq("subject-1"),
+                org.mockito.ArgumentMatchers.eq("Demo Operator")
         );
         assertThat(providerCaptor.getValue()).isEqualTo("google");
+    }
+
+    @Test
+    void requestAnalysisPassesCustomerAndMockOperator() {
+        UUID customerId = UUID.randomUUID();
+        AiAnalysisRequest request = completedRequest(customerId);
+        when(service.requestAnalysis(
+                org.mockito.ArgumentMatchers.eq(customerId),
+                org.mockito.ArgumentMatchers.eq("mock"),
+                org.mockito.ArgumentMatchers.eq("analyst-one"),
+                org.mockito.ArgumentMatchers.eq("Sarah Connor")
+        )).thenReturn(request);
+
+        AiAnalysisResponse response = controller.requestAnalysis(customerId, mockToken());
+
+        assertThat(response.analysisRequestId()).isEqualTo(request.analysisRequestId());
+        verify(service).requestAnalysis(customerId, "mock", "analyst-one", "Sarah Connor");
     }
 
     @Test
@@ -63,10 +85,19 @@ class AiAnalysisControllerTests {
     private static OAuth2AuthenticationToken oauthToken() {
         DefaultOAuth2User principal = new DefaultOAuth2User(
                 List.of(() -> "ROLE_USER"),
-                Map.of("sub", "subject-1"),
+                Map.of("sub", "subject-1", "name", "Demo Operator"),
                 "sub"
         );
         return new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "google");
+    }
+
+    private static UsernamePasswordAuthenticationToken mockToken() {
+        MockOperatorPrincipal principal = new MockOperatorPrincipal("analyst-one", "Sarah Connor");
+        return UsernamePasswordAuthenticationToken.authenticated(
+                principal,
+                "N/A",
+                List.of(new SimpleGrantedAuthority("ROLE_USER"))
+        );
     }
 
     private static AiAnalysisRequest completedRequest(UUID customerId) {
@@ -85,6 +116,7 @@ class AiAnalysisControllerTests {
                 UUID.randomUUID(),
                 customerId,
                 UUID.randomUUID(),
+                "Demo Operator",
                 AiAnalysisStatus.COMPLETED,
                 now,
                 now,

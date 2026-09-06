@@ -1,6 +1,6 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchCustomerAiAnalyses, requestCustomerAiAnalysis } from "../api/aiAnalysesApi";
 import { fetchCustomerActivities } from "../api/customerActivitiesApi";
 import { fetchCustomerSuggestions } from "../api/customerActivitiesApi";
@@ -49,8 +49,13 @@ const activityReport = {
 };
 
 describe("CustomerActivityDashboard", () => {
+  const originalScrollIntoView = Element.prototype.scrollIntoView;
+  let scrollIntoView;
+
   beforeEach(() => {
     vi.useRealTimers();
+    scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
     fetchCustomerActivities.mockReset();
     fetchCustomerSuggestions.mockReset();
     fetchCustomerAiAnalyses.mockReset();
@@ -70,6 +75,18 @@ describe("CustomerActivityDashboard", () => {
         evidence: []
       }
     });
+  });
+
+  afterEach(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView;
+  });
+
+  it("does not show the old helper message or demo customer title tooltip", () => {
+    render(<CustomerActivityDashboard />);
+
+    expect(screen.queryByLabelText("Show demo customer IDs")).not.toBeInTheDocument();
+    expect(screen.queryByText("Paste a customer UUID to load card, payment, and crypto activity."))
+      .not.toBeInTheDocument();
   });
 
   it("loads and renders customer activity after search", async () => {
@@ -255,9 +272,13 @@ describe("CustomerActivityDashboard", () => {
       }
     }));
     expect(screen.getByLabelText("Flagged activity only")).toBeChecked();
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "start"
+    });
   });
 
-  it("applies recommended flagged activity filters with the keyboard shortcut", async () => {
+  it("does not apply recommended flagged activity filters with the removed keyboard shortcut", async () => {
     requestCustomerAiAnalysis.mockResolvedValue({
       analysisRequestId: "analysis-1",
       customerId: activityReport.customerId,
@@ -282,7 +303,7 @@ describe("CustomerActivityDashboard", () => {
     await screen.findByText("Risk: HIGH");
     fireEvent.keyDown(window, { key: "r", altKey: true });
 
-    await waitFor(() => expect(fetchCustomerActivities).toHaveBeenCalledWith(activityReport.customerId, {
+    expect(fetchCustomerActivities).not.toHaveBeenCalledWith(activityReport.customerId, {
       limit: 50,
       offset: 0,
       filters: expect.objectContaining({
@@ -292,7 +313,8 @@ describe("CustomerActivityDashboard", () => {
         sortBy: "amount",
         sortDirection: "DESC"
       }
-    }));
+    });
+    expect(scrollIntoView).not.toHaveBeenCalled();
   });
 
   it("reloads the first page when filters or sorting change", async () => {

@@ -138,6 +138,25 @@ a {
   margin-top: 6px;
 }
 
+.demo-customer-note {
+  margin-top: 10px;
+}
+
+.demo-customer-note ul {
+  display: grid;
+  gap: 3px;
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+}
+
+.demo-customer-note li {
+  color: #314055;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
 .auth-welcome {
   color: #314055;
   font-weight: 900;
@@ -302,6 +321,12 @@ a {
   display: grid;
   gap: 16px;
   margin-top: 18px;
+  min-width: 0;
+}
+
+.activity-results > * {
+  max-width: 100%;
+  min-width: 0;
 }
 
 .activity-results-header {
@@ -497,11 +522,21 @@ a {
 }
 
 .ai-analysis-header,
+.analysis-meta-row,
 .analysis-risk-row {
   align-items: center;
   display: flex;
   gap: 12px;
   justify-content: space-between;
+}
+
+.analysis-meta-row {
+  align-items: flex-start;
+}
+
+.analysis-meta-row .activity-date-time {
+  color: #596579;
+  font-size: 0.86rem;
 }
 
 .ai-analysis-header .eyebrow {
@@ -514,6 +549,17 @@ a {
   color: #18212f;
   font-size: 1rem;
   margin: 0;
+}
+
+.ai-analysis-content,
+.ai-analysis-actions {
+  display: grid;
+  gap: 12px;
+}
+
+.ai-analysis-actions {
+  align-items: center;
+  display: flex;
 }
 
 .ai-analysis-header button {
@@ -530,6 +576,12 @@ a {
 .ai-analysis-header button:disabled {
   cursor: wait;
   opacity: 0.68;
+}
+
+.ai-analysis-header .analysis-toggle {
+  background: #ffffff;
+  border: 1px solid #c5cfdd;
+  color: #314055;
 }
 
 .analysis-history button {
@@ -569,6 +621,12 @@ a {
   white-space: pre-line;
 }
 
+.analysis-author {
+  color: #596579;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .analysis-highlight {
   background: #fff7ed;
   border: 1px solid #fed7aa;
@@ -593,13 +651,6 @@ a {
   justify-self: start;
   min-height: 36px;
   padding: 7px 12px;
-}
-
-.recommended-filter-button span {
-  background: rgba(255, 255, 255, 0.16);
-  border-radius: 6px;
-  font-size: 0.7rem;
-  padding: 2px 6px;
 }
 
 .analysis-result {
@@ -667,7 +718,7 @@ a {
 }
 
 .analysis-history li {
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(130px, 1fr) minmax(120px, auto) auto;
 }
 
 .analysis-evidence strong {
@@ -706,7 +757,9 @@ a {
   border: 1px solid #d7dee8;
   border-radius: 8px;
   max-height: 520px;
+  min-width: 0;
   overflow: auto;
+  width: 100%;
 }
 
 .activity-table {
@@ -1215,6 +1268,10 @@ h1 {
   width: min(100%, 680px);
 }
 
+.demo-operator-modal {
+  max-width: 560px;
+}
+
 .legal-modal-header {
   align-items: center;
   display: flex;
@@ -1237,6 +1294,42 @@ h1 {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 0.78rem;
   overflow-wrap: anywhere;
+}
+
+.demo-operator-list {
+  display: grid;
+  gap: 10px;
+}
+
+.demo-operator-option {
+  background: #f8fafc;
+  border: 1px solid #d7dee8;
+  border-radius: 8px;
+  color: #18212f;
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  text-decoration: none;
+}
+
+.demo-operator-option:hover {
+  border-color: #0f766e;
+  box-shadow: 0 12px 28px rgba(15, 118, 110, 0.12);
+}
+
+.demo-operator-option:focus-visible {
+  outline: 3px solid rgba(20, 184, 166, 0.45);
+  outline-offset: 3px;
+}
+
+.demo-operator-name {
+  font-weight: 900;
+}
+
+.demo-operator-description {
+  color: #596579;
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .modal-close {
@@ -1307,7 +1400,7 @@ h1 {
   color: #b3261e;
 }
 
-.login-option.meta .provider-symbol {
+.login-option.mock .provider-symbol {
   background: #e8f0fe;
   color: #1967d2;
 }

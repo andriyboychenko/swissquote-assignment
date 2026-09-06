@@ -26,6 +26,7 @@ services:
       GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
       GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
       GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:-{baseUrl}/login/oauth2/code/{registrationId}}
+      MOCK_AUTH_ENABLED: ${MOCK_AUTH_ENABLED:-true}
     expose:
       - "8080"
     depends_on:

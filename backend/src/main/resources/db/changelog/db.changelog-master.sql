@@ -273,49 +273,184 @@ SELECT
 FROM scored_transactions
 WHERE row_number % 2 = 0;
 
---changeset andriy:0010-low-risk-demo-customer
---comment Keep one known demo customer intentionally low risk for operator testing.
+--changeset andriy:0013-first-five-demo-risk-bands
+--comment Pin the first five documented demo customers to predictable LOW, LOW, MEDIUM, MEDIUM, HIGH analysis examples.
+WITH demo_risk_bands(customer_id, risk_band) AS (
+    VALUES
+        ('005514e6-1ebe-8010-de91-aff66d1d9484'::UUID, 'LOW'),
+        ('0a3ab26d-12b1-0efc-65d4-a2d6cc72ec67'::UUID, 'LOW'),
+        ('0abe215d-4832-1215-fe7a-264bfb844be9'::UUID, 'MEDIUM'),
+        ('0c534877-7dee-ed33-5278-68e39c8fe785'::UUID, 'MEDIUM'),
+        ('0ddc4d69-0dcf-fba9-15c2-88a68e6665de'::UUID, 'HIGH')
+)
 DELETE FROM ai_analysis_evidence evidence
-USING ai_analysis_results result
-JOIN ai_analysis_requests request ON request.analysis_request_id = result.analysis_request_id
+USING ai_analysis_results result, ai_analysis_requests request, demo_risk_bands bands
 WHERE evidence.analysis_result_id = result.analysis_result_id
-  AND request.customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484';
+  AND result.analysis_request_id = request.analysis_request_id
+  AND request.customer_id = bands.customer_id;
 
+WITH demo_risk_bands(customer_id, risk_band) AS (
+    VALUES
+        ('005514e6-1ebe-8010-de91-aff66d1d9484'::UUID, 'LOW'),
+        ('0a3ab26d-12b1-0efc-65d4-a2d6cc72ec67'::UUID, 'LOW'),
+        ('0abe215d-4832-1215-fe7a-264bfb844be9'::UUID, 'MEDIUM'),
+        ('0c534877-7dee-ed33-5278-68e39c8fe785'::UUID, 'MEDIUM'),
+        ('0ddc4d69-0dcf-fba9-15c2-88a68e6665de'::UUID, 'HIGH')
+)
 DELETE FROM ai_analysis_results result
-USING ai_analysis_requests request
+USING ai_analysis_requests request, demo_risk_bands bands
 WHERE result.analysis_request_id = request.analysis_request_id
-  AND request.customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484';
+  AND request.customer_id = bands.customer_id;
 
-DELETE FROM ai_analysis_requests
-WHERE customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484';
+WITH demo_risk_bands(customer_id, risk_band) AS (
+    VALUES
+        ('005514e6-1ebe-8010-de91-aff66d1d9484'::UUID, 'LOW'),
+        ('0a3ab26d-12b1-0efc-65d4-a2d6cc72ec67'::UUID, 'LOW'),
+        ('0abe215d-4832-1215-fe7a-264bfb844be9'::UUID, 'MEDIUM'),
+        ('0c534877-7dee-ed33-5278-68e39c8fe785'::UUID, 'MEDIUM'),
+        ('0ddc4d69-0dcf-fba9-15c2-88a68e6665de'::UUID, 'HIGH')
+)
+DELETE FROM ai_analysis_requests request
+USING demo_risk_bands bands
+WHERE request.customer_id = bands.customer_id;
 
+WITH demo_risk_bands(customer_id, risk_band) AS (
+    VALUES
+        ('005514e6-1ebe-8010-de91-aff66d1d9484'::UUID, 'LOW'),
+        ('0a3ab26d-12b1-0efc-65d4-a2d6cc72ec67'::UUID, 'LOW'),
+        ('0abe215d-4832-1215-fe7a-264bfb844be9'::UUID, 'MEDIUM'),
+        ('0c534877-7dee-ed33-5278-68e39c8fe785'::UUID, 'MEDIUM'),
+        ('0ddc4d69-0dcf-fba9-15c2-88a68e6665de'::UUID, 'HIGH')
+)
 DELETE FROM risk_assessments assessment
-USING transactions tx
+USING transactions tx, demo_risk_bands bands
 WHERE assessment.transaction_id = tx.transaction_id
-  AND tx.customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484';
+  AND tx.customer_id = bands.customer_id;
 
-WITH low_risk_transactions AS (
+WITH demo_risk_bands(customer_id, risk_band) AS (
+    VALUES
+        ('005514e6-1ebe-8010-de91-aff66d1d9484'::UUID, 'LOW'),
+        ('0a3ab26d-12b1-0efc-65d4-a2d6cc72ec67'::UUID, 'LOW'),
+        ('0abe215d-4832-1215-fe7a-264bfb844be9'::UUID, 'MEDIUM'),
+        ('0c534877-7dee-ed33-5278-68e39c8fe785'::UUID, 'MEDIUM'),
+        ('0ddc4d69-0dcf-fba9-15c2-88a68e6665de'::UUID, 'HIGH')
+),
+ranked_transactions AS (
     SELECT
-        transaction_id,
-        ROW_NUMBER() OVER (ORDER BY created_at, transaction_id) AS row_number
-    FROM transactions
-    WHERE customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484'
+        tx.transaction_id,
+        bands.risk_band,
+        ROW_NUMBER() OVER (PARTITION BY tx.customer_id ORDER BY tx.created_at, tx.transaction_id) AS row_number
+    FROM transactions tx
+    JOIN demo_risk_bands bands ON bands.customer_id = tx.customer_id
 )
 UPDATE transactions tx
 SET
-    amount = ROUND((25 + (low_risk_transactions.row_number % 450))::NUMERIC, 2),
-    status = 'Completed',
+    amount = CASE
+        WHEN ranked_transactions.risk_band = 'LOW' THEN ROUND((25 + ranked_transactions.row_number)::NUMERIC, 2)
+        WHEN ranked_transactions.risk_band = 'MEDIUM' AND ranked_transactions.row_number <= 3 THEN 7500.00
+        WHEN ranked_transactions.risk_band = 'HIGH' AND ranked_transactions.row_number <= 7 THEN 18000.00
+        ELSE tx.amount
+    END,
+    status = CASE
+        WHEN ranked_transactions.risk_band = 'LOW' THEN 'Completed'
+        WHEN ranked_transactions.risk_band = 'MEDIUM' AND ranked_transactions.row_number = 3 THEN 'Failed'
+        WHEN ranked_transactions.risk_band = 'HIGH' AND ranked_transactions.row_number IN (3, 6) THEN 'Reversed'
+        ELSE tx.status
+    END,
     risk_indicators = '[]'::jsonb
-FROM low_risk_transactions
-WHERE low_risk_transactions.transaction_id = tx.transaction_id;
+FROM ranked_transactions
+WHERE ranked_transactions.transaction_id = tx.transaction_id;
 
-UPDATE card_activity
-SET decline_reason = NULL
-WHERE transaction_id IN (
-    SELECT transaction_id
-    FROM transactions
-    WHERE customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484'
-);
+WITH demo_risk_bands(customer_id, risk_band) AS (
+    VALUES
+        ('005514e6-1ebe-8010-de91-aff66d1d9484'::UUID, 'LOW'),
+        ('0a3ab26d-12b1-0efc-65d4-a2d6cc72ec67'::UUID, 'LOW'),
+        ('0abe215d-4832-1215-fe7a-264bfb844be9'::UUID, 'MEDIUM'),
+        ('0c534877-7dee-ed33-5278-68e39c8fe785'::UUID, 'MEDIUM'),
+        ('0ddc4d69-0dcf-fba9-15c2-88a68e6665de'::UUID, 'HIGH')
+),
+ranked_transactions AS (
+    SELECT
+        tx.transaction_id,
+        tx.activity_type,
+        tx.created_at,
+        bands.risk_band,
+        ROW_NUMBER() OVER (PARTITION BY tx.customer_id ORDER BY tx.created_at, tx.transaction_id) AS row_number
+    FROM transactions tx
+    JOIN demo_risk_bands bands ON bands.customer_id = tx.customer_id
+),
+selected_transactions AS (
+    SELECT *
+    FROM ranked_transactions
+    WHERE CASE
+        WHEN risk_band = 'MEDIUM' THEN row_number <= 3
+        WHEN risk_band = 'HIGH' THEN row_number <= 7
+        ELSE FALSE
+    END
+)
+INSERT INTO risk_assessments (
+    assessment_id,
+    transaction_id,
+    rule_id,
+    triggered_at,
+    score_contribution
+)
+SELECT
+    (
+        SUBSTRING(MD5('first-five-demo-risk-band-' || transaction_id), 1, 8) || '-' ||
+        SUBSTRING(MD5('first-five-demo-risk-band-' || transaction_id), 9, 4) || '-' ||
+        SUBSTRING(MD5('first-five-demo-risk-band-' || transaction_id), 13, 4) || '-' ||
+        SUBSTRING(MD5('first-five-demo-risk-band-' || transaction_id), 17, 4) || '-' ||
+        SUBSTRING(MD5('first-five-demo-risk-band-' || transaction_id), 21, 12)
+    )::UUID,
+    transaction_id,
+    CASE
+        WHEN activity_type = 'PAYMENT' THEN 'c8692f01-167f-449d-9286-571f1c1f6f01'::UUID
+        WHEN activity_type = 'CRYPTO' THEN '27a67f38-d581-4015-b738-e468d8736007'::UUID
+        ELSE '1d16706c-8c4a-41b4-b99d-2e6f1e566003'::UUID
+    END,
+    created_at + INTERVAL '2 minutes',
+    CASE
+        WHEN risk_band = 'MEDIUM' AND row_number <= 2 THEN 20.00
+        WHEN risk_band = 'MEDIUM' THEN 15.00
+        WHEN risk_band = 'HIGH' AND row_number = 1 THEN 25.00
+        ELSE 20.00
+    END
+FROM selected_transactions;
+
+WITH demo_risk_bands(customer_id, risk_band) AS (
+    VALUES
+        ('005514e6-1ebe-8010-de91-aff66d1d9484'::UUID, 'LOW'),
+        ('0a3ab26d-12b1-0efc-65d4-a2d6cc72ec67'::UUID, 'LOW'),
+        ('0abe215d-4832-1215-fe7a-264bfb844be9'::UUID, 'MEDIUM'),
+        ('0c534877-7dee-ed33-5278-68e39c8fe785'::UUID, 'MEDIUM'),
+        ('0ddc4d69-0dcf-fba9-15c2-88a68e6665de'::UUID, 'HIGH')
+),
+indicator_values AS (
+    SELECT
+        ra.transaction_id,
+        JSONB_AGG(
+            JSONB_BUILD_OBJECT(
+                'ruleName', rr.rule_name,
+                'severity', CASE
+                    WHEN ra.score_contribution >= 20 THEN 'HIGH'
+                    WHEN ra.score_contribution >= 12 THEN 'MEDIUM'
+                    ELSE 'LOW'
+                END,
+                'scoreContribution', ra.score_contribution
+            )
+            ORDER BY ra.score_contribution DESC, rr.rule_name ASC
+        ) AS risk_indicators
+    FROM risk_assessments ra
+    JOIN risk_rules rr ON rr.rule_id = ra.rule_id
+    JOIN transactions tx ON tx.transaction_id = ra.transaction_id
+    JOIN demo_risk_bands bands ON bands.customer_id = tx.customer_id
+    GROUP BY ra.transaction_id
+)
+UPDATE transactions tx
+SET risk_indicators = indicator_values.risk_indicators
+FROM indicator_values
+WHERE indicator_values.transaction_id = tx.transaction_id;
 
 --changeset andriy:0009-transaction-risk-indicators
 --comment Persist row-level risk indicators as JSONB metadata for customer activity review highlighting.
@@ -389,6 +524,55 @@ CREATE TABLE ai_analysis_evidence (
 );
 
 CREATE INDEX idx_ai_analysis_evidence_analysis_result_id ON ai_analysis_evidence(analysis_result_id);
+
+--changeset andriy:0012-ai-analysis-request-operator-display-name
+--comment Store the display name shown for the operator who requested an AI analysis.
+ALTER TABLE ai_analysis_requests
+ADD COLUMN IF NOT EXISTS requested_by_operator_display_name VARCHAR(160) NOT NULL DEFAULT 'Unknown operator';
+
+--changeset andriy:0010-low-risk-demo-customer
+--comment Keep one known demo customer intentionally low risk for operator testing.
+DELETE FROM ai_analysis_evidence evidence
+USING ai_analysis_results result
+JOIN ai_analysis_requests request ON request.analysis_request_id = result.analysis_request_id
+WHERE evidence.analysis_result_id = result.analysis_result_id
+  AND request.customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484';
+
+DELETE FROM ai_analysis_results result
+USING ai_analysis_requests request
+WHERE result.analysis_request_id = request.analysis_request_id
+  AND request.customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484';
+
+DELETE FROM ai_analysis_requests
+WHERE customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484';
+
+DELETE FROM risk_assessments assessment
+USING transactions tx
+WHERE assessment.transaction_id = tx.transaction_id
+  AND tx.customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484';
+
+WITH low_risk_transactions AS (
+    SELECT
+        transaction_id,
+        ROW_NUMBER() OVER (ORDER BY created_at, transaction_id) AS row_number
+    FROM transactions
+    WHERE customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484'
+)
+UPDATE transactions tx
+SET
+    amount = ROUND((25 + (low_risk_transactions.row_number % 450))::NUMERIC, 2),
+    status = 'Completed',
+    risk_indicators = '[]'::jsonb
+FROM low_risk_transactions
+WHERE low_risk_transactions.transaction_id = tx.transaction_id;
+
+UPDATE card_activity
+SET decline_reason = NULL
+WHERE transaction_id IN (
+    SELECT transaction_id
+    FROM transactions
+    WHERE customer_id = '005514e6-1ebe-8010-de91-aff66d1d9484'
+);
 
 --changeset andriy:0005-more-demo-risk-rules
 --comment Additional demo risk rules for richer operator analytics examples.

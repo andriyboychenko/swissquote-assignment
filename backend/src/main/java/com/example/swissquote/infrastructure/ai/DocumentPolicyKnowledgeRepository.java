@@ -19,6 +19,11 @@ public class DocumentPolicyKnowledgeRepository implements PolicyKnowledgeReposit
             "Open an operator risk review when a customer shows failed, reversed, high-value, or unusual cross-channel activity in the same review window.",
             BigDecimal.valueOf(0.9400)
     );
+    private static final PolicySection STANDARD_MONITORING = new PolicySection(
+            "policy://policies/customer-activity-risk-review-v1.md#standard-monitoring",
+            "No triggered risk signals means the analysis should avoid escalation language and recommend standard monitoring unless new activity changes the risk context.",
+            BigDecimal.valueOf(0.9100)
+    );
     private static final PolicySection ACTIVITY_OVERVIEW = new PolicySection(
             "policy://policies/customer-activity-risk-review-v1.md#activity-overview",
             "The overview should group activity by card, payment, and crypto channels and highlight status, amount, counterparty, date, and known decline details.",
@@ -46,6 +51,10 @@ public class DocumentPolicyKnowledgeRepository implements PolicyKnowledgeReposit
             RiskSignalSummary riskSignalSummary
     ) {
         CustomerActivitySummary summary = activityReport.summary();
+        if (riskSignalSummary.triggeredSignals() == 0) {
+            return List.of(STANDARD_MONITORING.toEvidence());
+        }
+
         List<PolicySection> sections = new ArrayList<>();
         sections.add(OPERATOR_REVIEW);
         sections.add(ACTIVITY_OVERVIEW);

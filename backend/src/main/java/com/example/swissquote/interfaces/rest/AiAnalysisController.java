@@ -17,6 +17,8 @@ import java.util.UUID;
 @RequestMapping("/api/customers/{customerId}/ai-analyses")
 public class AiAnalysisController {
 
+    private static final String MOCK_PROVIDER = "mock";
+
     private final AiAnalysisService aiAnalysisService;
 
     public AiAnalysisController(AiAnalysisService aiAnalysisService) {
@@ -31,7 +33,8 @@ public class AiAnalysisController {
         return AiAnalysisResponse.fromDomain(aiAnalysisService.requestAnalysis(
                 customerId,
                 operatorProvider(authentication),
-                operatorSubject(authentication)
+                operatorSubject(authentication),
+                operatorDisplayName(authentication)
         ));
     }
 
@@ -43,14 +46,39 @@ public class AiAnalysisController {
     }
 
     private static String operatorProvider(Authentication authentication) {
-        return authentication instanceof OAuth2AuthenticationToken token
-                ? token.getAuthorizedClientRegistrationId()
-                : null;
+        if (authentication instanceof OAuth2AuthenticationToken token) {
+            return token.getAuthorizedClientRegistrationId();
+        }
+
+        if (authentication != null && authentication.getPrincipal() instanceof MockOperatorPrincipal) {
+            return MOCK_PROVIDER;
+        }
+
+        return null;
     }
 
     private static String operatorSubject(Authentication authentication) {
-        return authentication instanceof OAuth2AuthenticationToken token
-                ? token.getPrincipal().getName()
-                : null;
+        if (authentication instanceof OAuth2AuthenticationToken token) {
+            return token.getPrincipal().getName();
+        }
+
+        if (authentication != null && authentication.getPrincipal() instanceof MockOperatorPrincipal principal) {
+            return principal.subject();
+        }
+
+        return null;
+    }
+
+    private static String operatorDisplayName(Authentication authentication) {
+        if (authentication instanceof OAuth2AuthenticationToken token) {
+            Object name = token.getPrincipal().getAttribute("name");
+            return name instanceof String stringName ? stringName : token.getPrincipal().getName();
+        }
+
+        if (authentication != null && authentication.getPrincipal() instanceof MockOperatorPrincipal principal) {
+            return principal.displayName();
+        }
+
+        return null;
     }
 }

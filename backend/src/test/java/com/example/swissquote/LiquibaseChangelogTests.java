@@ -150,4 +150,39 @@ class LiquibaseChangelogTests {
             assertThat(changelog).contains("CROSS JOIN GENERATE_SERIES(1, 100) AS activity_number");
         }
     }
+
+    @Test
+    void masterChangelogPersistsAiAnalysisOperatorDisplayName() throws IOException {
+        try (InputStream inputStream = getClass().getResourceAsStream("/db/changelog/db.changelog-master.sql")) {
+            assertThat(inputStream).isNotNull();
+
+            String changelog = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertThat(changelog).contains("CREATE TABLE ai_analysis_requests");
+            assertThat(changelog).contains("requested_by_operator_id UUID REFERENCES operator_users(operator_id)");
+            assertThat(changelog).contains("requested_by_operator_display_name VARCHAR(160) NOT NULL DEFAULT 'Unknown operator'");
+            assertThat(changelog).contains("--changeset andriy:0012-ai-analysis-request-operator-display-name");
+            assertThat(changelog).contains("ADD COLUMN IF NOT EXISTS requested_by_operator_display_name");
+        }
+    }
+
+    @Test
+    void masterChangelogPinsFirstFiveDemoCustomersToKnownRiskBands() throws IOException {
+        try (InputStream inputStream = getClass().getResourceAsStream("/db/changelog/db.changelog-master.sql")) {
+            assertThat(inputStream).isNotNull();
+
+            String changelog = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertThat(changelog).contains("--changeset andriy:0013-first-five-demo-risk-bands");
+            assertThat(changelog).contains("'005514e6-1ebe-8010-de91-aff66d1d9484'::UUID, 'LOW'");
+            assertThat(changelog).contains("'0a3ab26d-12b1-0efc-65d4-a2d6cc72ec67'::UUID, 'LOW'");
+            assertThat(changelog).contains("'0abe215d-4832-1215-fe7a-264bfb844be9'::UUID, 'MEDIUM'");
+            assertThat(changelog).contains("'0c534877-7dee-ed33-5278-68e39c8fe785'::UUID, 'MEDIUM'");
+            assertThat(changelog).contains("'0ddc4d69-0dcf-fba9-15c2-88a68e6665de'::UUID, 'HIGH'");
+            assertThat(changelog).contains("WHEN risk_band = 'MEDIUM' THEN row_number <= 3");
+            assertThat(changelog).contains("WHEN risk_band = 'HIGH' THEN row_number <= 7");
+            assertThat(changelog).contains("DELETE FROM ai_analysis_requests");
+            assertThat(changelog).contains("risk_indicators = '[]'::jsonb");
+        }
+    }
 }

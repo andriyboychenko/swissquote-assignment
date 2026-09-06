@@ -4,6 +4,7 @@ import com.example.swissquote.application.auth.OperatorAccessService;
 import com.example.swissquote.domain.auth.OperatorAccess;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -83,5 +84,28 @@ class AuthControllerTests {
         assertThat(response.authenticated()).isTrue();
         assertThat(response.blocked()).isTrue();
         assertThat(response.blockReason()).isEqualTo("Pending moderator approval");
+    }
+
+    @Test
+    void currentOperatorReturnsMockOperatorDetailsAndRecordsPseudonymousLogin() {
+        OperatorAccessService accessService = mock(OperatorAccessService.class);
+        when(accessService.recordLogin("mock", "analyst-one"))
+                .thenReturn(new OperatorAccess("mock", false, null));
+        AuthController controller = new AuthController(accessService);
+        MockOperatorPrincipal principal = new MockOperatorPrincipal("analyst-one", "Sarah Connor");
+
+        AuthenticatedOperatorResponse response = controller.currentOperator(
+                UsernamePasswordAuthenticationToken.authenticated(
+                        principal,
+                        "N/A",
+                        List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                )
+        );
+
+        assertThat(response.authenticated()).isTrue();
+        assertThat(response.name()).isEqualTo("Sarah Connor");
+        assertThat(response.email()).isNull();
+        assertThat(response.provider()).isEqualTo("mock");
+        verify(accessService).recordLogin("mock", "analyst-one");
     }
 }

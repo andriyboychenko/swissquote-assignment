@@ -24,6 +24,7 @@ public class JdbcAiAnalysisRepository implements AiAnalysisRepository {
                 analysis_request_id,
                 customer_id,
                 requested_by_operator_id,
+                requested_by_operator_display_name,
                 status,
                 requested_at,
                 started_at,
@@ -34,6 +35,7 @@ public class JdbcAiAnalysisRepository implements AiAnalysisRepository {
                 :analysisRequestId,
                 :customerId,
                 :requestedByOperatorId,
+                :requestedByOperatorDisplayName,
                 :status,
                 :requestedAt,
                 :startedAt,
@@ -41,6 +43,7 @@ public class JdbcAiAnalysisRepository implements AiAnalysisRepository {
                 :failureReason
             )
             ON CONFLICT (analysis_request_id) DO UPDATE SET
+                requested_by_operator_display_name = EXCLUDED.requested_by_operator_display_name,
                 status = EXCLUDED.status,
                 started_at = EXCLUDED.started_at,
                 completed_at = EXCLUDED.completed_at,
@@ -104,6 +107,7 @@ public class JdbcAiAnalysisRepository implements AiAnalysisRepository {
                 request.analysis_request_id,
                 request.customer_id,
                 request.requested_by_operator_id,
+                request.requested_by_operator_display_name,
                 request.status,
                 request.requested_at,
                 request.started_at,
@@ -180,6 +184,7 @@ public class JdbcAiAnalysisRepository implements AiAnalysisRepository {
                 .addValue("analysisRequestId", request.analysisRequestId())
                 .addValue("customerId", request.customerId())
                 .addValue("requestedByOperatorId", request.requestedByOperatorId())
+                .addValue("requestedByOperatorDisplayName", request.requestedByOperatorDisplayName())
                 .addValue("status", request.status().name())
                 .addValue("requestedAt", Timestamp.from(request.requestedAt()))
                 .addValue("startedAt", toTimestamp(request.startedAt()))
@@ -231,6 +236,7 @@ public class JdbcAiAnalysisRepository implements AiAnalysisRepository {
                 resultSet.getObject("analysis_request_id", UUID.class),
                 resultSet.getObject("customer_id", UUID.class),
                 resultSet.getObject("requested_by_operator_id", UUID.class),
+                resultSet.getString("requested_by_operator_display_name"),
                 AiAnalysisStatus.valueOf(resultSet.getString("status")),
                 resultSet.getTimestamp("requested_at").toInstant(),
                 toInstant(resultSet, "started_at"),

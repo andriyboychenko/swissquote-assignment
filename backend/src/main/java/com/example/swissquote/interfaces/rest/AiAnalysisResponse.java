@@ -12,6 +12,7 @@ import java.util.UUID;
 public record AiAnalysisResponse(
         UUID analysisRequestId,
         UUID customerId,
+        String requestedByOperatorDisplayName,
         String status,
         Instant requestedAt,
         Instant startedAt,
@@ -24,6 +25,7 @@ public record AiAnalysisResponse(
         return new AiAnalysisResponse(
                 request.analysisRequestId(),
                 request.customerId(),
+                request.requestedByOperatorDisplayName(),
                 request.status().name(),
                 request.requestedAt(),
                 request.startedAt(),

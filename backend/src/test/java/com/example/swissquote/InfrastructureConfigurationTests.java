@@ -32,6 +32,7 @@ class InfrastructureConfigurationTests {
         assertThat(config).contains("proxy_pass http://$api_gateway_upstream");
         assertThat(config).contains("location /oauth2/");
         assertThat(config).contains("location /login/");
+        assertThat(config).contains("location /mock-login");
         assertThat(config).contains("location /logout");
         assertThat(config).contains("proxy_set_header Host $http_host");
         assertThat(config).contains("proxy_set_header X-Forwarded-Host $http_host");
@@ -51,6 +52,7 @@ class InfrastructureConfigurationTests {
         assertThat(config).contains("proxy_pass http://$backend_upstream");
         assertThat(config).contains("location /oauth2/");
         assertThat(config).contains("location /login/");
+        assertThat(config).contains("location /mock-login");
         assertThat(config).contains("location /logout");
         assertThat(config).contains("proxy_set_header Host $http_host");
         assertThat(config).contains("proxy_set_header X-Forwarded-Host $http_host");

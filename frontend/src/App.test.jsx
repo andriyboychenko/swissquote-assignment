@@ -32,14 +32,30 @@ describe("App", () => {
     expect(screen.queryByText("Search customers by Customer ID")).not.toBeInTheDocument();
   });
 
-  it("renders Google and Meta login options", async () => {
+  it("renders Google and mock operator login options", async () => {
     render(<App />);
 
     expect(await screen.findByRole("link", { name: /Continue with Google/ })).toHaveAttribute(
       "href",
       "/oauth2/authorization/google"
     );
-    expect(screen.getByRole("button", { name: /Continue with Meta/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Continue with Demo operator/ })).toBeInTheDocument();
+  });
+
+  it("opens the demo operator chooser from the mock login option", async () => {
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Continue with Demo operator/ }));
+
+    expect(screen.getByRole("dialog", { name: "Choose demo operator" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Sarah Connor/ })).toHaveAttribute(
+      "href",
+      "/mock-login?operator=analyst-one"
+    );
+    expect(screen.getByRole("link", { name: /John McClane/ })).toHaveAttribute(
+      "href",
+      "/mock-login?operator=risk-reviewer"
+    );
   });
 
   it("opens privacy and terms notices from the landing page", async () => {
@@ -48,7 +64,8 @@ describe("App", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Privacy & Data" }));
 
     expect(screen.getByRole("dialog", { name: "Privacy & Data" })).toBeInTheDocument();
-    expect(screen.getByText(/does not persist the operator's name or email/)).toBeInTheDocument();
+    expect(screen.getByText(/operator display name on AI analysis records/)).toBeInTheDocument();
+    expect(screen.getByText(/does not persist the operator's email/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Close legal notice" }));
     fireEvent.click(screen.getByRole("button", { name: "Terms & Conditions" }));

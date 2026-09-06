@@ -8,6 +8,7 @@ public record AiAnalysisRequest(
         UUID analysisRequestId,
         UUID customerId,
         UUID requestedByOperatorId,
+        String requestedByOperatorDisplayName,
         AiAnalysisStatus status,
         Instant requestedAt,
         Instant startedAt,
@@ -23,11 +24,17 @@ public record AiAnalysisRequest(
         Objects.requireNonNull(requestedAt, "requestedAt must not be null");
     }
 
-    public static AiAnalysisRequest pending(UUID customerId, UUID requestedByOperatorId, Instant requestedAt) {
+    public static AiAnalysisRequest pending(
+            UUID customerId,
+            UUID requestedByOperatorId,
+            String requestedByOperatorDisplayName,
+            Instant requestedAt
+    ) {
         return new AiAnalysisRequest(
                 UUID.randomUUID(),
                 customerId,
                 requestedByOperatorId,
+                requestedByOperatorDisplayName,
                 AiAnalysisStatus.PENDING,
                 requestedAt,
                 null,
@@ -42,6 +49,7 @@ public record AiAnalysisRequest(
                 analysisRequestId,
                 customerId,
                 requestedByOperatorId,
+                requestedByOperatorDisplayName,
                 AiAnalysisStatus.RUNNING,
                 requestedAt,
                 startedAt,
@@ -56,6 +64,7 @@ public record AiAnalysisRequest(
                 analysisRequestId,
                 customerId,
                 requestedByOperatorId,
+                requestedByOperatorDisplayName,
                 AiAnalysisStatus.COMPLETED,
                 requestedAt,
                 startedAt,
@@ -70,6 +79,7 @@ public record AiAnalysisRequest(
                 analysisRequestId,
                 customerId,
                 requestedByOperatorId,
+                requestedByOperatorDisplayName,
                 AiAnalysisStatus.FAILED,
                 requestedAt,
                 startedAt,

@@ -1,6 +1,6 @@
 import React from "react";
 
-export function LoginOption({ provider, description, href, symbol, variant, disabled = false }) {
+export function LoginOption({ provider, description, href = undefined, symbol, variant, disabled = false, onClick = undefined }) {
   const content = (
     <>
       <span className="provider-symbol" aria-hidden="true">
@@ -15,6 +15,10 @@ export function LoginOption({ provider, description, href, symbol, variant, disa
 
   return disabled ? (
     <button className={`login-option ${variant}`} disabled type="button">
+      {content}
+    </button>
+  ) : onClick ? (
+    <button className={`login-option ${variant}`} type="button" onClick={onClick}>
       {content}
     </button>
   ) : (

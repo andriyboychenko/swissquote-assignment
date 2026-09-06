@@ -91,10 +91,11 @@ class AiAnalysisServiceTests {
         when(policyKnowledgeRepository.retrieveRelevantPolicies(report, riskSignalSummary)).thenReturn(evidence);
         when(aiAnalysisGenerator.generate(any(), any(), any(), any(), any())).thenReturn(result);
 
-        AiAnalysisRequest request = service.requestAnalysis(customerId, "google", "subject");
+        AiAnalysisRequest request = service.requestAnalysis(customerId, "google", "subject", "Demo Operator");
 
         assertThat(request.status()).isEqualTo(AiAnalysisStatus.COMPLETED);
         assertThat(request.requestedByOperatorId()).isEqualTo(operatorId);
+        assertThat(request.requestedByOperatorDisplayName()).isEqualTo("Demo Operator");
         assertThat(request.result()).isEqualTo(result);
         verify(aiAnalysisGenerator).generate(
                 request.analysisRequestId(),

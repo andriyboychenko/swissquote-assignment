@@ -1,6 +1,6 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { LoginOption } from "./LoginOption";
 
 describe("LoginOption", () => {
@@ -25,15 +25,33 @@ describe("LoginOption", () => {
   it("renders a disabled provider option when auth is not configured", () => {
     render(
       <LoginOption
-        provider="Meta"
-        description="Meta login will be added after Google"
+        provider="Provider"
+        description="Provider login is not configured"
         symbol="M"
-        variant="meta"
+        variant="provider"
         disabled
       />
     );
 
-    expect(screen.getByRole("button", { name: /Continue with Meta/ })).toBeDisabled();
-    expect(screen.getByText("Meta login will be added after Google")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Continue with Provider/ })).toBeDisabled();
+    expect(screen.getByText("Provider login is not configured")).toBeInTheDocument();
+  });
+
+  it("renders an actionable provider button", () => {
+    const onClick = vi.fn();
+
+    render(
+      <LoginOption
+        provider="Demo operator"
+        description="Choose a local mock operator session"
+        symbol="D"
+        variant="mock"
+        onClick={onClick}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Continue with Demo operator/ }));
+
+    expect(onClick).toHaveBeenCalledOnce();
   });
 });

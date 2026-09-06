@@ -41,6 +41,7 @@ export function CustomerActivityDashboard() {
   const [sort, setSort] = useState(DEFAULT_SORT);
   const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1);
   const [suggestionStatus, setSuggestionStatus] = useState("idle");
+  const activityTableSectionRef = useRef(null);
   const suggestionRequestRef = useRef(0);
   const suggestionTimerRef = useRef(null);
 
@@ -50,18 +51,6 @@ export function CustomerActivityDashboard() {
       window.clearTimeout(suggestionTimerRef.current);
     }
   }, []);
-
-  useEffect(() => {
-    function handleRecommendedFilterShortcut(event) {
-      if (event.altKey && event.key.toLowerCase() === "r" && report) {
-        event.preventDefault();
-        void handleApplyRecommendedFilters();
-      }
-    }
-
-    window.addEventListener("keydown", handleRecommendedFilterShortcut);
-    return () => window.removeEventListener("keydown", handleRecommendedFilterShortcut);
-  }, [report, filters, sort]);
 
   function handleCustomerIdChange(nextCustomerId) {
     setCustomerId(nextCustomerId);
@@ -304,6 +293,11 @@ export function CustomerActivityDashboard() {
         mode: "replace"
       });
     }
+
+    activityTableSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
   }
 
   return (
@@ -327,10 +321,6 @@ export function CustomerActivityDashboard() {
         onSuggestionMouseEnter={setHighlightedSuggestionIndex}
         onSubmit={handleSearch}
       />
-
-      {status === "idle" ? (
-        <p className="dashboard-state">Paste a customer UUID to load card, payment, and crypto activity.</p>
-      ) : null}
 
       {status === "loading" ? <p className="dashboard-state">Loading customer activity...</p> : null}
 
@@ -358,14 +348,16 @@ export function CustomerActivityDashboard() {
             onFilterChange={handleFilterChange}
             onReset={handleResetFilters}
           />
-          <ActivityTable
-            activities={report.activities}
-            hasMore={report.page.hasMore}
-            isLoadingMore={paginationStatus === "loading"}
-            sort={sort}
-            onSortChange={handleSortChange}
-            onLoadMore={handleLoadMore}
-          />
+          <div ref={activityTableSectionRef}>
+            <ActivityTable
+              activities={report.activities}
+              hasMore={report.page.hasMore}
+              isLoadingMore={paginationStatus === "loading"}
+              sort={sort}
+              onSortChange={handleSortChange}
+              onLoadMore={handleLoadMore}
+            />
+          </div>
           {paginationStatus === "error" ? <p className="dashboard-error">{error}</p> : null}
         </div>
       ) : null}

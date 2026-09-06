@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { fetchCurrentOperator } from "./api/authApi";
 import { AuthSuccessPage } from "./components/AuthSuccessPage";
+import { DemoOperatorModal } from "./components/DemoOperatorModal";
 import { LegalNoticeActions } from "./components/LegalNoticeActions";
 import { LegalNoticeModal } from "./components/LegalNoticeModal";
 import { LoginOption } from "./components/LoginOption";
@@ -15,11 +16,11 @@ const loginOptions = [
     variant: "google"
   },
   {
-    provider: "Meta",
-    description: "Meta login will be added after Google",
-    symbol: "M",
-    variant: "meta",
-    disabled: true
+    provider: "Demo operator",
+    description: "Choose a local mock operator session",
+    symbol: "D",
+    variant: "mock",
+    opensDemoOperatorChooser: true
   }
 ];
 
@@ -27,7 +28,7 @@ const legalNotices = {
   privacy: {
     title: "Privacy & Data",
     body:
-      "This demo stores only the OAuth provider, a pseudonymous account identifier hash, access status, and login timestamps. It does not persist the operator's name or email. Customer activity data is used only to support the analytics and risk review workflow."
+      "This demo stores the OAuth or mock provider, a pseudonymous account identifier hash, access status, login timestamps, and the operator display name on AI analysis records for audit attribution. It does not persist the operator's email. Customer activity data is used only to support the analytics and risk review workflow."
   },
   terms: {
     title: "Terms & Conditions",
@@ -40,6 +41,7 @@ export default function App() {
   const [operator, setOperator] = useState(null);
   const [authStatus, setAuthStatus] = useState("loading");
   const [activeNotice, setActiveNotice] = useState(null);
+  const [isDemoOperatorModalOpen, setIsDemoOperatorModalOpen] = useState(false);
 
   const selectedNotice = activeNotice ? legalNotices[activeNotice] : null;
 
@@ -111,6 +113,7 @@ export default function App() {
                 symbol={option.symbol}
                 variant={option.variant}
                 disabled={option.disabled}
+                onClick={option.opensDemoOperatorChooser ? () => setIsDemoOperatorModalOpen(true) : undefined}
               />
             ))}
           </div>
@@ -118,6 +121,7 @@ export default function App() {
         </div>
       </section>
       <LegalNoticeModal notice={selectedNotice} onClose={() => setActiveNotice(null)} />
+      <DemoOperatorModal isOpen={isDemoOperatorModalOpen} onClose={() => setIsDemoOperatorModalOpen(false)} />
     </main>
   );
 }

@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/auth")
 public class AuthController {
 
+    private static final String MOCK_PROVIDER = "mock";
+
     private final OperatorAccessService operatorAccessService;
 
     public AuthController(OperatorAccessService operatorAccessService) {
@@ -29,6 +31,19 @@ public class AuthController {
             return new AuthenticatedOperatorResponse(
                     stringAttribute(principal, "name"),
                     stringAttribute(principal, "email"),
+                    access.provider(),
+                    true,
+                    access.blocked(),
+                    access.blockReason()
+            );
+        }
+
+        if (authentication != null && authentication.getPrincipal() instanceof MockOperatorPrincipal principal) {
+            OperatorAccess access = operatorAccessService.recordLogin(MOCK_PROVIDER, principal.subject());
+
+            return new AuthenticatedOperatorResponse(
+                    principal.displayName(),
+                    null,
                     access.provider(),
                     true,
                     access.blocked(),

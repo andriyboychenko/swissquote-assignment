@@ -43,10 +43,10 @@ class DocumentPolicyKnowledgeRepositoryTests {
     }
 
     @Test
-    void retrieveRelevantPoliciesOmitsSpecializedDocumentsWhenSignalsAreAbsent() {
+    void retrieveRelevantPoliciesUsesStandardMonitoringPolicyWhenSignalsAreAbsent() {
         CustomerActivityReport report = new CustomerActivityReport(
                 UUID.randomUUID(),
-                new CustomerActivitySummary(4, 4, 0, 0, 0, 0),
+                new CustomerActivitySummary(10, 3, 4, 3, 0, 0),
                 List.of(),
                 new CustomerActivityPage(50, 0, 0, false, 0)
         );
@@ -58,9 +58,9 @@ class DocumentPolicyKnowledgeRepositoryTests {
 
         assertThat(evidence).extracting("sourceReference")
                 .containsExactly(
-                        "policy://policies/customer-activity-risk-review-v1.md#operator-review-triggers",
-                        "policy://policies/customer-activity-risk-review-v1.md#activity-overview"
+                        "policy://policies/customer-activity-risk-review-v1.md#standard-monitoring"
                 );
+        assertThat(evidence.getFirst().excerpt()).contains("No triggered risk signals");
     }
 
     @Test

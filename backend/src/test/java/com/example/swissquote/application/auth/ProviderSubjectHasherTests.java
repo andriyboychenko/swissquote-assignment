@@ -23,9 +23,9 @@ class ProviderSubjectHasherTests {
     @Test
     void hashSeparatesProviders() {
         String googleHash = hasher.hash("google", "subject-123");
-        String metaHash = hasher.hash("meta", "subject-123");
+        String mockHash = hasher.hash("mock", "subject-123");
 
-        assertThat(googleHash).isNotEqualTo(metaHash);
+        assertThat(googleHash).isNotEqualTo(mockHash);
     }
 
     @Test

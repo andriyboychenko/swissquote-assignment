@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { DEMO_CUSTOMER_IDS } from "../demoCustomerIds";
 
 const STORAGE_KEY = "swissquote-authentication-notice-minimized";
 
@@ -44,6 +45,14 @@ export function AuthenticationNotice({ operatorName }) {
             In a real scenario, operator access would need to be reviewed and accepted
             by a moderator before the dashboard becomes available.
           </p>
+          <div className="demo-customer-note">
+            <p>These customer IDs may be useful for a demo:</p>
+            <ul>
+              {DEMO_CUSTOMER_IDS.map((customerId) => (
+                <li key={customerId}>{customerId}</li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
     </section>
