@@ -53,6 +53,7 @@ Browser
 - Use `gradle.properties.example` as the safe template.
 - Docker Compose must keep using `${DB_PASSWORD:?Set DB_PASSWORD in gradle.properties}` so startup fails when the password is missing.
 - Google OAuth credentials must remain in local ignored config or deployment secrets.
+- Google login must be disabled in backend registration and hidden in the landing page when `GOOGLE_OAUTH_CLIENT_SECRET` is absent. The GitHub demo repo should explain that the secret is provided only through local presentation configuration.
 
 ## Auth Routes
 
@@ -61,6 +62,7 @@ Browser
 - `/mock-login?operator={operator}`: starts a demo-only mock operator session when mock auth is enabled. Supported operators are `analyst-one` (Sarah Connor), `analyst-two` (Lisbeth Salander), and `risk-reviewer` (John McClane).
 - `/logout`: clears the Spring Security session.
 - `/api/auth/me`: returns the current operator session; anonymous users receive `authenticated=false`.
+- `/api/auth/me` also exposes whether Google login is enabled, so the frontend can hide the Google option when the OAuth client secret is absent.
 - The load balancer and API gateway must route `/oauth2/`, `/login/`, `/mock-login`, and `/logout` to the backend.
 - Authenticated operators are persisted in `operator_users` with only provider name, a hashed provider subject, blocked status, block reason, and timestamps. AI analysis requests may persist `requested_by_operator_display_name` for audit attribution in saved reviews. Do not persist operator emails or broader personal profile data. Mock auth must use provider `mock` and still persist only a hashed subject in `operator_users`.
 

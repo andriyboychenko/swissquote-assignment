@@ -6,10 +6,11 @@ public record AuthenticatedOperatorResponse(
         String provider,
         boolean authenticated,
         boolean blocked,
-        String blockReason
+        String blockReason,
+        boolean googleLoginEnabled
 ) {
 
-    public static AuthenticatedOperatorResponse anonymous() {
-        return new AuthenticatedOperatorResponse(null, null, null, false, false, null);
+    public static AuthenticatedOperatorResponse anonymous(boolean googleLoginEnabled) {
+        return new AuthenticatedOperatorResponse(null, null, null, false, false, null, googleLoginEnabled);
     }
 }

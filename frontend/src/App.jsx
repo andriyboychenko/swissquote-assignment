@@ -7,7 +7,7 @@ import { LegalNoticeModal } from "./components/LegalNoticeModal";
 import { LoginOption } from "./components/LoginOption";
 import "./styles.css";
 
-const loginOptions = [
+const configuredLoginOptions = [
   {
     provider: "Google",
     description: "Continue with your Google account",
@@ -40,10 +40,12 @@ const legalNotices = {
 export default function App() {
   const [operator, setOperator] = useState(null);
   const [authStatus, setAuthStatus] = useState("loading");
+  const [googleLoginEnabled, setGoogleLoginEnabled] = useState(false);
   const [activeNotice, setActiveNotice] = useState(null);
   const [isDemoOperatorModalOpen, setIsDemoOperatorModalOpen] = useState(false);
 
   const selectedNotice = activeNotice ? legalNotices[activeNotice] : null;
+  const loginOptions = configuredLoginOptions.filter((option) => option.provider !== "Google" || googleLoginEnabled);
 
   useEffect(() => {
     let active = true;
@@ -56,6 +58,8 @@ export default function App() {
           return;
         }
 
+        setGoogleLoginEnabled(Boolean(currentOperator.googleLoginEnabled));
+
         if (currentOperator.authenticated) {
           setOperator(currentOperator);
           setAuthStatus("authenticated");
@@ -64,6 +68,7 @@ export default function App() {
         }
       } catch {
         if (active) {
+          setGoogleLoginEnabled(false);
           setAuthStatus("anonymous");
         }
       }
@@ -117,6 +122,12 @@ export default function App() {
               />
             ))}
           </div>
+          {googleLoginEnabled ? null : (
+            <p className="auth-availability-note">
+              Google login is disabled because GOOGLE_OAUTH_CLIENT_SECRET is not configured. It is a secret and cannot be
+              provided in GitHub; it can be shown during the presentation with local runtime configuration.
+            </p>
+          )}
           <LegalNoticeActions onOpenNotice={setActiveNotice} />
         </div>
       </section>

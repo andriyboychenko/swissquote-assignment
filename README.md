@@ -51,7 +51,7 @@ Then open:
 - App through load balancer: <http://localhost:3000>
 - Load balancer health: <http://localhost:3000/health>
 - Backend health through gateway path: <http://localhost:3000/actuator/health>
-- Google login start path: <http://localhost:3000/oauth2/authorization/google>
+- Google login start path, only when local Google OAuth credentials are configured: <http://localhost:3000/oauth2/authorization/google>
 - Mock demo login path: <http://localhost:3000/mock-login?operator=analyst-one>
 - PostgreSQL inside Docker network: `postgres:5432`
 
@@ -82,6 +82,8 @@ GET /api/policies/{documentName}/sections/{sectionAnchor}
 
 Google login is implemented with Spring Security OAuth2 Login.
 
+Google login is disabled automatically when `GOOGLE_OAUTH_CLIENT_SECRET` is not present. The secret is intentionally not provided in GitHub; for a company demo, configure it locally before the presentation and show the login flow from that local environment.
+
 Create an OAuth 2.0 Web Client in Google Cloud Console:
 
 - Application type: `Web application`
@@ -102,7 +104,7 @@ Restart the stack after changing credentials:
 docker compose --env-file gradle.properties up --build
 ```
 
-The frontend Google button redirects to `/oauth2/authorization/google`; the demo operator button redirects to `/mock-login?operator=analyst-one`. The load balancer and API gateway forward `/oauth2/`, `/login/`, `/mock-login`, and `/logout` to the backend. The backend exposes the current operator session at `/api/auth/me`.
+The frontend asks `/api/auth/me` whether Google login is enabled. If `GOOGLE_OAUTH_CLIENT_SECRET` is missing, the Google button is hidden and only demo operator login is shown. When enabled, the frontend Google button redirects to `/oauth2/authorization/google`; the demo operator button redirects to `/mock-login?operator=analyst-one`. The load balancer and API gateway forward `/oauth2/`, `/login/`, `/mock-login`, and `/logout` to the backend.
 
 Authenticated operators are written to the database in `operator_users`. The table intentionally avoids personal profile data: it stores only the OAuth provider, a SHA-256 hash of the provider subject, blocked status, optional block reason, and timestamps. AI analysis requests also store the operator display name shown at request time so saved reviews can show who generated them. Operator email is not persisted by this application.
 

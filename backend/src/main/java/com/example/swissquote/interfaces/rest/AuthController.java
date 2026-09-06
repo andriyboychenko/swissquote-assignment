@@ -1,6 +1,7 @@
 package com.example.swissquote.interfaces.rest;
 
 import com.example.swissquote.application.auth.OperatorAccessService;
+import com.example.swissquote.config.GoogleOAuthProperties;
 import com.example.swissquote.domain.auth.OperatorAccess;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
@@ -16,9 +17,11 @@ public class AuthController {
     private static final String MOCK_PROVIDER = "mock";
 
     private final OperatorAccessService operatorAccessService;
+    private final GoogleOAuthProperties googleOAuthProperties;
 
-    public AuthController(OperatorAccessService operatorAccessService) {
+    public AuthController(OperatorAccessService operatorAccessService, GoogleOAuthProperties googleOAuthProperties) {
         this.operatorAccessService = operatorAccessService;
+        this.googleOAuthProperties = googleOAuthProperties;
     }
 
     @GetMapping("/me")
@@ -34,7 +37,8 @@ public class AuthController {
                     access.provider(),
                     true,
                     access.blocked(),
-                    access.blockReason()
+                    access.blockReason(),
+                    googleOAuthProperties.configured()
             );
         }
 
@@ -47,11 +51,12 @@ public class AuthController {
                     access.provider(),
                     true,
                     access.blocked(),
-                    access.blockReason()
+                    access.blockReason(),
+                    googleOAuthProperties.configured()
             );
         }
 
-        return AuthenticatedOperatorResponse.anonymous();
+        return AuthenticatedOperatorResponse.anonymous(googleOAuthProperties.configured());
     }
 
     private static String stringAttribute(OAuth2User principal, String name) {

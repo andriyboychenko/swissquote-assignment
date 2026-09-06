@@ -1,6 +1,7 @@
 package com.example.swissquote.interfaces.rest;
 
 import com.example.swissquote.application.auth.OperatorAccessService;
+import com.example.swissquote.config.GoogleOAuthProperties;
 import com.example.swissquote.domain.auth.OperatorAccess;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -22,7 +23,7 @@ class AuthControllerTests {
     @Test
     void currentOperatorReturnsAnonymousResponseWithoutOAuthAuthentication() {
         OperatorAccessService accessService = mock(OperatorAccessService.class);
-        AuthController controller = new AuthController(accessService);
+        AuthController controller = new AuthController(accessService, missingGoogleProperties());
 
         AuthenticatedOperatorResponse response = controller.currentOperator(null);
 
@@ -32,6 +33,7 @@ class AuthControllerTests {
         assertThat(response.provider()).isNull();
         assertThat(response.blocked()).isFalse();
         assertThat(response.blockReason()).isNull();
+        assertThat(response.googleLoginEnabled()).isFalse();
     }
 
     @Test
@@ -39,7 +41,7 @@ class AuthControllerTests {
         OperatorAccessService accessService = mock(OperatorAccessService.class);
         when(accessService.recordLogin("google", "google-subject"))
                 .thenReturn(new OperatorAccess("google", false, null));
-        AuthController controller = new AuthController(accessService);
+        AuthController controller = new AuthController(accessService, configuredGoogleProperties());
         OAuth2User principal = new DefaultOAuth2User(
                 List.of(new SimpleGrantedAuthority("ROLE_USER")),
                 Map.of("sub", "google-subject", "name", "Demo Operator", "email", "operator@example.com"),
@@ -59,6 +61,7 @@ class AuthControllerTests {
         assertThat(response.provider()).isEqualTo("google");
         assertThat(response.blocked()).isFalse();
         assertThat(response.blockReason()).isNull();
+        assertThat(response.googleLoginEnabled()).isTrue();
         verify(accessService).recordLogin("google", "google-subject");
     }
 
@@ -67,7 +70,7 @@ class AuthControllerTests {
         OperatorAccessService accessService = mock(OperatorAccessService.class);
         when(accessService.recordLogin("google", "google-subject"))
                 .thenReturn(new OperatorAccess("google", true, "Pending moderator approval"));
-        AuthController controller = new AuthController(accessService);
+        AuthController controller = new AuthController(accessService, configuredGoogleProperties());
         OAuth2User principal = new DefaultOAuth2User(
                 List.of(new SimpleGrantedAuthority("ROLE_USER")),
                 Map.of("sub", "google-subject", "name", "Demo Operator", "email", "operator@example.com"),
@@ -84,6 +87,7 @@ class AuthControllerTests {
         assertThat(response.authenticated()).isTrue();
         assertThat(response.blocked()).isTrue();
         assertThat(response.blockReason()).isEqualTo("Pending moderator approval");
+        assertThat(response.googleLoginEnabled()).isTrue();
     }
 
     @Test
@@ -91,7 +95,7 @@ class AuthControllerTests {
         OperatorAccessService accessService = mock(OperatorAccessService.class);
         when(accessService.recordLogin("mock", "analyst-one"))
                 .thenReturn(new OperatorAccess("mock", false, null));
-        AuthController controller = new AuthController(accessService);
+        AuthController controller = new AuthController(accessService, missingGoogleProperties());
         MockOperatorPrincipal principal = new MockOperatorPrincipal("analyst-one", "Sarah Connor");
 
         AuthenticatedOperatorResponse response = controller.currentOperator(
@@ -106,6 +110,19 @@ class AuthControllerTests {
         assertThat(response.name()).isEqualTo("Sarah Connor");
         assertThat(response.email()).isNull();
         assertThat(response.provider()).isEqualTo("mock");
+        assertThat(response.googleLoginEnabled()).isFalse();
         verify(accessService).recordLogin("mock", "analyst-one");
+    }
+
+    private static GoogleOAuthProperties missingGoogleProperties() {
+        return new GoogleOAuthProperties("", "", "{baseUrl}/login/oauth2/code/{registrationId}");
+    }
+
+    private static GoogleOAuthProperties configuredGoogleProperties() {
+        return new GoogleOAuthProperties(
+                "google-client-id",
+                "google-client-secret",
+                "{baseUrl}/login/oauth2/code/{registrationId}"
+        );
     }
 }

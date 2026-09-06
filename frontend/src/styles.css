@@ -1214,6 +1214,13 @@ h1 {
   gap: 12px;
 }
 
+.auth-availability-note {
+  color: #5f6b7c;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin-top: 14px;
+}
+
 .legal-actions {
   display: flex;
   flex-wrap: wrap;

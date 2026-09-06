@@ -22,6 +22,13 @@ class InfrastructureConfigurationTests {
     }
 
     @Test
+    void dockerComposeUsesOnlyGoogleOAuthClientSecret() throws IOException {
+        String compose = Files.readString(findProjectRoot().resolve("docker-compose.yml"));
+
+        assertThat(compose).contains("GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}");
+    }
+
+    @Test
     void loadBalancerRoutesApiTrafficToApiGateway() throws IOException {
         String config = Files.readString(findProjectRoot().resolve("docker/nginx/load-balancer.conf"));
 

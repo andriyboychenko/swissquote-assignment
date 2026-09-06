@@ -14,7 +14,7 @@ vi.mock("./api/customerActivitiesApi", () => ({
 
 describe("App", () => {
   beforeEach(() => {
-    fetchCurrentOperator.mockResolvedValue({ authenticated: false });
+    fetchCurrentOperator.mockResolvedValue({ authenticated: false, googleLoginEnabled: true });
   });
 
   it("renders the welcome landing page for anonymous users", async () => {
@@ -40,6 +40,18 @@ describe("App", () => {
       "/oauth2/authorization/google"
     );
     expect(screen.getByRole("button", { name: /Continue with Demo operator/ })).toBeInTheDocument();
+  });
+
+  it("hides Google login when the backend has no Google client secret", async () => {
+    fetchCurrentOperator.mockResolvedValue({ authenticated: false, googleLoginEnabled: false });
+
+    render(<App />);
+
+    await waitFor(() => expect(fetchCurrentOperator).toHaveBeenCalled());
+    expect(screen.queryByRole("link", { name: /Continue with Google/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Continue with Demo operator/ })).toBeInTheDocument();
+    expect(screen.getByText(/Google login is disabled because GOOGLE_OAUTH_CLIENT_SECRET is not configured/))
+      .toBeInTheDocument();
   });
 
   it("opens the demo operator chooser from the mock login option", async () => {
