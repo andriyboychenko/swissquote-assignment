@@ -142,3 +142,10 @@ These rules apply to future coding work in this repository.
 - `ai-risk-scoped-autonomy`: Keep agent autonomy proportional to action risk.
 - `ai-human-review-gates`: Require human review before high-impact decisions, external side effects, or irreversible actions.
 - `ai-low-risk-first`: Prefer low-risk actions such as summarizing, classifying, or drafting before actions that modify systems or user data.
+## Service boundaries
+
+- `backend` is the core service. It owns authentication, customers, transactions, activity filtering, and risk signals.
+- `ai-service` is the internal AI service. It receives bounded snapshots from the core service and owns AI analysis persistence and policy evidence.
+- `core-postgres` and `ai-postgres` are separate database nodes. Local Compose may reuse `DB_PASSWORD`, but service credentials should be separated in deployed environments.
+- Keep the browser API contract under `/api` stable. The core service remains the authenticated facade; do not expose `/internal/ai-analyses` through the public gateway.
+- Any future Spring AI provider or vector store belongs behind the AI service interfaces and must not make the core service depend on AI infrastructure.

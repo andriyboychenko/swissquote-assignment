@@ -1,6 +1,6 @@
 package com.example.swissquote.interfaces.rest;
 
-import com.example.swissquote.application.analysis.AiAnalysisService;
+import com.example.swissquote.application.analysis.AiAnalysisUseCase;
 import com.example.swissquote.domain.analysis.AiAnalysisRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
@@ -19,9 +19,9 @@ public class AiAnalysisController {
 
     private static final String MOCK_PROVIDER = "mock";
 
-    private final AiAnalysisService aiAnalysisService;
+    private final AiAnalysisUseCase aiAnalysisService;
 
-    public AiAnalysisController(AiAnalysisService aiAnalysisService) {
+    public AiAnalysisController(AiAnalysisUseCase aiAnalysisService) {
         this.aiAnalysisService = aiAnalysisService;
     }
 

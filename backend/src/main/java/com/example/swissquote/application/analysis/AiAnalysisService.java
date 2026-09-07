@@ -10,6 +10,7 @@ import com.example.swissquote.domain.analysis.AiAnalysisResult;
 import com.example.swissquote.domain.analysis.RiskSignalSummary;
 import com.example.swissquote.domain.auth.OperatorAccount;
 import org.springframework.stereotype.Service;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
@@ -19,7 +20,8 @@ import java.util.Objects;
 import java.util.UUID;
 
 @Service
-public class AiAnalysisService {
+@ConditionalOnProperty(prefix = "app.ai", name = "remote-enabled", havingValue = "false", matchIfMissing = true)
+public class AiAnalysisService implements AiAnalysisUseCase {
 
     private static final int ANALYSIS_ACTIVITY_LIMIT = 100;
 

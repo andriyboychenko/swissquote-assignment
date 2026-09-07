@@ -4,7 +4,7 @@ set -eu
 cd "$(dirname "$0")/.."
 
 echo "== Backend tests =="
-./gradlew :backend:test
+./gradlew :backend:test :ai-service:test
 
 echo "== Frontend tests =="
 (

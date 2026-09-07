@@ -12,8 +12,20 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.filter.ForwardedHeaderFilter;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
 @EnableConfigurationProperties({GoogleOAuthProperties.class, MockAuthProperties.class})
@@ -27,9 +39,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         AuthenticationEntryPoint unauthorizedApiResponse = new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED);
+        CsrfTokenRequestAttributeHandler csrfRequestHandler = new CsrfTokenRequestAttributeHandler();
+        csrfRequestHandler.setCsrfRequestAttributeName(null);
 
         return http
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRequestHandler(csrfRequestHandler)
+                )
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").permitAll()
@@ -53,6 +70,7 @@ public class SecurityConfig {
                                 new AntPathRequestMatcher("/api/**")
                         )
                 )
+                .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
                 .build();
     }
 
@@ -64,5 +82,22 @@ public class SecurityConfig {
     @Bean
     public SimpleUrlAuthenticationFailureHandler oAuth2FailureHandler() {
         return new SimpleUrlAuthenticationFailureHandler("/?login=failed");
+    }
+
+    private static final class CsrfCookieFilter extends OncePerRequestFilter {
+
+        @Override
+        protected void doFilterInternal(
+                HttpServletRequest request,
+                HttpServletResponse response,
+                FilterChain filterChain
+        ) throws ServletException, IOException {
+            CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+            if (csrfToken != null) {
+                csrfToken.getToken();
+            }
+
+            filterChain.doFilter(request, response);
+        }
     }
 }

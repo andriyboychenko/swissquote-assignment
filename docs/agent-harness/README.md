@@ -17,16 +17,19 @@ Read it before changing code, infrastructure, or tests.
 3. `docker-compose.yml`
 4. `backend/src/main/resources/application.yml`
 5. `backend/src/main/resources/db/changelog/db.changelog-master.sql`
-6. `frontend/package.json`
-7. `frontend/vite.config.js`
+6. `ai-service/src/main/resources/db/changelog/db.changelog-ai.sql`
+7. `frontend/package.json`
+8. `frontend/vite.config.js`
 
 ## Current Architecture
 
 - `load-balancer`: public Nginx entrypoint on `localhost:3000`.
 - `frontend`: React/Vite app served by Nginx.
 - `api-gateway`: internal Nginx gateway for backend traffic.
-- `backend`: Spring Boot application built with Gradle.
-- `postgres`: PostgreSQL database with Liquibase-managed schema.
+- `backend`: authenticated core Spring Boot service built with Gradle. It owns customers, transactions, activity filtering, and risk signals.
+- `ai-service`: internal Spring Boot service for RAG and persisted AI analysis. It receives bounded snapshots from the core service.
+- `core-postgres`: PostgreSQL database with the core Liquibase schema.
+- `ai-postgres`: separate PostgreSQL database with `db.changelog-ai.sql` for AI analysis requests, results, and evidence.
 - Google OAuth login starts at `/oauth2/authorization/google` and returns through `/login/oauth2/code/google`.
 - Mock demo login starts at `/mock-login?operator=analyst-one` when `MOCK_AUTH_ENABLED=true`; this is enabled by default only in the Docker demo configuration.
 - Liquibase seeds a compact demo dataset: 100 customers with 100 activities each, for 10,000 total card/payment/crypto activities and 12 demo risk rules. Demo activity types and statuses use deterministic per-customer variation.
@@ -43,7 +46,9 @@ Browser
     -> frontend for /
     -> api-gateway for /api/ and /actuator/
       -> backend
-        -> postgres
+        -> core-postgres
+        -> ai-service (private token-authenticated call)
+          -> ai-postgres
 ```
 
 ## Secrets
@@ -53,7 +58,8 @@ Browser
 - Use `gradle.properties.example` as the safe template.
 - Docker Compose must keep using `${DB_PASSWORD:?Set DB_PASSWORD in gradle.properties}` so startup fails when the password is missing.
 - Google OAuth credentials must remain in local ignored config or deployment secrets.
-- Google login must be disabled in backend registration and hidden in the landing page when `GOOGLE_OAUTH_CLIENT_SECRET` is absent. The GitHub demo repo should explain that the secret is provided only through local presentation configuration.
+- `AI_SERVICE_TOKEN` must be supplied to both the core and AI containers; it is not a browser credential and must never be exposed in frontend code.
+- Google login must be disabled and shown as unavailable below the demo operator login when `GOOGLE_OAUTH_CLIENT_SECRET` is absent. The GitHub demo repo should explain that the secret is provided only through local presentation configuration.
 
 ## Auth Routes
 
@@ -62,9 +68,16 @@ Browser
 - `/mock-login?operator={operator}`: starts a demo-only mock operator session when mock auth is enabled. Supported operators are `analyst-one` (Sarah Connor), `analyst-two` (Lisbeth Salander), and `risk-reviewer` (John McClane).
 - `/logout`: clears the Spring Security session.
 - `/api/auth/me`: returns the current operator session; anonymous users receive `authenticated=false`.
-- `/api/auth/me` also exposes whether Google login is enabled, so the frontend can hide the Google option when the OAuth client secret is absent.
+- `/api/auth/me` also exposes whether Google login is enabled, so the frontend can disable and move the Google option below mock login when the OAuth client secret is absent.
 - The load balancer and API gateway must route `/oauth2/`, `/login/`, `/mock-login`, and `/logout` to the backend.
 - Authenticated operators are persisted in `operator_users` with only provider name, a hashed provider subject, blocked status, block reason, and timestamps. AI analysis requests may persist `requested_by_operator_display_name` for audit attribution in saved reviews. Do not persist operator emails or broader personal profile data. Mock auth must use provider `mock` and still persist only a hashed subject in `operator_users`.
+
+## CSRF Protection
+
+- Spring Security must keep cookie-backed CSRF enabled with `XSRF-TOKEN` available to the React app and `X-XSRF-TOKEN` accepted on mutating requests.
+- Frontend POST, PUT, PATCH, and DELETE requests must use `frontend/src/api/csrfApi.js` so the CSRF token is included consistently.
+- Logout must remain a POST action, not a GET link, because it changes the authenticated session.
+- GET endpoints should remain side-effect free so they do not require CSRF headers.
 
 ## Customer Activity Routes
 
@@ -89,6 +102,7 @@ Browser
 - Policy evidence links must be openable in the UI through `GET /api/policies/{documentName}/sections/{sectionAnchor}`.
 - Low-risk analyses with zero triggered risk signals should cite only standard-monitoring evidence, not review-trigger or specialized channel risk policy snippets.
 - The current `DeterministicAiAnalysisGenerator` and `DocumentPolicyKnowledgeRepository` are infrastructure adapters. Replace or extend them behind `AiAnalysisGenerator` and `PolicyKnowledgeRepository` when adding Spring AI and a real vector store.
+- In Compose, the core `AiAnalysisController` remains the authenticated public facade, while `RemoteAiAnalysisService` calls the private AI service. The AI service endpoint is `/internal/ai-analyses` and must not be added to the public Nginx routes.
 - Generated policy documents live under `backend/src/main/resources/policies`. Keep evidence `sourceReference` values aligned with real file names and section anchors.
 - If activity arrives through Kafka later, store raw customer activity in the existing activity tables first, then trigger analysis either on explicit operator request or through a separate analysis command/event. Keep Kafka offsets and processing state outside the customer activity tables; use request/status rows to make retries and UI status visible.
 
@@ -125,7 +139,7 @@ Browser
 - Authenticated operator screens should use dense dashboard layouts with clear search, loading, error, empty, summary, and table states.
 - Mock demo login should open a chooser modal before redirecting to `/mock-login?operator={operator}` so demos can switch between supported operators.
 - Non-critical authenticated notices should stay compact and support persisted minimize/dismiss behavior so they do not block the operator workflow.
-- The authenticated `Note` should expose the first five seeded demo customer IDs for easier demos; avoid duplicating explanatory helper text below the search input or using a Customer ID title tooltip.
+- The authenticated `Note` should expose the first five seeded demo customer IDs for easier demos, ordered from highest risk to lowest risk; avoid duplicating explanatory helper text below the search input or using a Customer ID title tooltip.
 - ID-heavy search fields should use backend-backed autocomplete with bounded limits, keyboard arrow/enter selection, and explicit loading/no-result states.
 - Large activity tables should page lazily, load 50 rows by default, and load more rows on scroll instead of rendering the full dataset at once.
 - AI recommendation actions may apply table filters directly, but they must reuse the same server-side filter/lazy-loading path as manual filters and scroll to the table after applying filters.
@@ -181,7 +195,7 @@ Run the relevant checks before handing work back.
 The script runs:
 
 ```bash
-./gradlew :backend:test
+./gradlew :backend:test :ai-service:test
 cd frontend && npm test
 docker compose --env-file gradle.properties config --quiet
 ```

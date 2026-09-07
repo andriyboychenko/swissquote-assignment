@@ -42,14 +42,17 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /Continue with Demo operator/ })).toBeInTheDocument();
   });
 
-  it("hides Google login when the backend has no Google client secret", async () => {
+  it("shows disabled Google login below mock login when the backend has no Google client secret", async () => {
     fetchCurrentOperator.mockResolvedValue({ authenticated: false, googleLoginEnabled: false });
 
     render(<App />);
 
     await waitFor(() => expect(fetchCurrentOperator).toHaveBeenCalled());
-    expect(screen.queryByRole("link", { name: /Continue with Google/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Continue with Demo operator/ })).toBeInTheDocument();
+    const demoOperatorOption = screen.getByRole("button", { name: /Continue with Demo operator/ });
+    const googleOption = screen.getByRole("button", { name: /Continue with Google/ });
+
+    expect(googleOption).toBeDisabled();
+    expect(demoOperatorOption.compareDocumentPosition(googleOption)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(screen.getByText(/Google login is disabled because GOOGLE_OAUTH_CLIENT_SECRET is not configured/))
       .toBeInTheDocument();
   });
@@ -100,6 +103,6 @@ describe("App", () => {
     expect(screen.getByText("Welcome, Demo Operator")).toBeInTheDocument();
     expect(screen.getByText(/all authenticated users have access/)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Search activity by Customer ID" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Logout" })).toHaveAttribute("href", "/logout");
+    expect(screen.getByRole("button", { name: "Logout" })).toBeInTheDocument();
   });
 });

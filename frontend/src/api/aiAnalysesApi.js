@@ -1,3 +1,5 @@
+import { csrfFetch } from "./csrfApi";
+
 export async function fetchCustomerAiAnalyses(customerId) {
   const normalizedCustomerId = customerId.trim();
 
@@ -5,7 +7,7 @@ export async function fetchCustomerAiAnalyses(customerId) {
     throw new Error("Customer ID is required");
   }
 
-  const response = await fetch(`/api/customers/${encodeURIComponent(normalizedCustomerId)}/ai-analyses`, {
+  const response = await csrfFetch(`/api/customers/${encodeURIComponent(normalizedCustomerId)}/ai-analyses`, {
     credentials: "include"
   });
 
@@ -23,7 +25,7 @@ export async function requestCustomerAiAnalysis(customerId) {
     throw new Error("Customer ID is required");
   }
 
-  const response = await fetch(`/api/customers/${encodeURIComponent(normalizedCustomerId)}/ai-analyses`, {
+  const response = await csrfFetch(`/api/customers/${encodeURIComponent(normalizedCustomerId)}/ai-analyses`, {
     credentials: "include",
     method: "POST"
   });

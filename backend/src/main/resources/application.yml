@@ -28,6 +28,10 @@ server:
   forward-headers-strategy: framework
 
 app:
+  ai:
+    remote-enabled: ${AI_REMOTE_ENABLED:false}
+    service-url: ${AI_SERVICE_URL:http://localhost:8082}
+    service-token: ${AI_SERVICE_TOKEN:local-ai-service-token}
   auth:
     google:
       client-id: ${GOOGLE_OAUTH_CLIENT_ID:}

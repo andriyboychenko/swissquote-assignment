@@ -21,6 +21,7 @@ describe("aiAnalysesApi", () => {
   });
 
   it("requests customer AI analysis", async () => {
+    document.cookie = "XSRF-TOKEN=token-123; path=/";
     fetch.mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ analysisRequestId: "analysis-1" })
@@ -30,6 +31,9 @@ describe("aiAnalysesApi", () => {
 
     expect(fetch).toHaveBeenCalledWith("/api/customers/customer-1/ai-analyses", {
       credentials: "include",
+      headers: {
+        "X-XSRF-TOKEN": "token-123"
+      },
       method: "POST"
     });
     expect(analysis).toEqual({ analysisRequestId: "analysis-1" });

@@ -22,7 +22,7 @@ describe("AuthSuccessPage", () => {
     expect(screen.getByText("Welcome, Demo Operator")).toBeInTheDocument();
     expect(screen.getByText(/Since this is a demo/)).toBeInTheDocument();
     expect(screen.getByText(/accepted by a moderator/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Logout" })).toHaveAttribute("href", "/logout");
+    expect(screen.getByRole("button", { name: "Logout" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Search activity by Customer ID" })).toBeInTheDocument();
   });
 });

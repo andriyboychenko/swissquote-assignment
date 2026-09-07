@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: swissquote-ai-service
+  config:
+    import: optional:file:./gradle.properties,optional:file:../gradle.properties
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: jdbc:postgresql://${AI_DB_HOST:ai-postgres}:${AI_DB_PORT:5432}/${AI_DB_NAME:swissquote_ai}
+    username: ${DB_USER:swissquote}
+    password: ${DB_PASSWORD}
+  liquibase:
+    change-log: classpath:/db/changelog/db.changelog-ai.sql
+  jpa:
+    open-in-view: false
+
+server:
+  port: 8080
+
+ai:
+  service:
+    internal-token: ${AI_SERVICE_TOKEN:local-ai-service-token}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

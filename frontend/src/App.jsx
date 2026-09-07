@@ -7,22 +7,39 @@ import { LegalNoticeModal } from "./components/LegalNoticeModal";
 import { LoginOption } from "./components/LoginOption";
 import "./styles.css";
 
-const configuredLoginOptions = [
-  {
-    provider: "Google",
-    description: "Continue with your Google account",
-    href: "/oauth2/authorization/google",
-    symbol: "G",
-    variant: "google"
-  },
-  {
-    provider: "Demo operator",
-    description: "Choose a local mock operator session",
-    symbol: "D",
-    variant: "mock",
-    opensDemoOperatorChooser: true
+const googleLoginOption = {
+  provider: "Google",
+  description: "Continue with your Google account",
+  href: "/oauth2/authorization/google",
+  symbol: "G",
+  variant: "google"
+};
+
+const mockLoginOption = {
+  provider: "Demo operator",
+  description: "Choose a local mock operator session",
+  symbol: "D",
+  variant: "mock",
+  opensDemoOperatorChooser: true
+};
+
+function loginOptionsFor(googleLoginEnabled) {
+  if (googleLoginEnabled) {
+    return [googleLoginOption, mockLoginOption];
   }
-];
+
+  return [
+    mockLoginOption,
+    {
+      provider: googleLoginOption.provider,
+      description: "Google OAuth client secret is not configured",
+      href: googleLoginOption.href,
+      symbol: googleLoginOption.symbol,
+      variant: googleLoginOption.variant,
+      disabled: true
+    }
+  ];
+}
 
 const legalNotices = {
   privacy: {
@@ -45,7 +62,7 @@ export default function App() {
   const [isDemoOperatorModalOpen, setIsDemoOperatorModalOpen] = useState(false);
 
   const selectedNotice = activeNotice ? legalNotices[activeNotice] : null;
-  const loginOptions = configuredLoginOptions.filter((option) => option.provider !== "Google" || googleLoginEnabled);
+  const loginOptions = loginOptionsFor(googleLoginEnabled);
 
   useEffect(() => {
     let active = true;

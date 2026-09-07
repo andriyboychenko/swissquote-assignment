@@ -1,5 +1,5 @@
 services:
-  postgres:
+  core-postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: ${DB_NAME:-swissquote}
@@ -18,7 +18,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     environment:
-      DB_HOST: postgres
+      DB_HOST: core-postgres
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-swissquote}
       DB_USER: ${DB_USER:-swissquote}
@@ -27,11 +27,51 @@ services:
       GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
       GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:-{baseUrl}/login/oauth2/code/{registrationId}}
       MOCK_AUTH_ENABLED: ${MOCK_AUTH_ENABLED:-true}
+      AI_REMOTE_ENABLED: "true"
+      AI_SERVICE_URL: http://ai-service:8080
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-local-ai-service-token}
     expose:
       - "8080"
     depends_on:
-      postgres:
+      core-postgres:
         condition: service_healthy
+      ai-service:
+        condition: service_healthy
+
+  ai-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${AI_DB_NAME:-swissquote_ai}
+      POSTGRES_USER: ${DB_USER:-swissquote}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in gradle.properties}
+    volumes:
+      - ai-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U swissquote -d swissquote_ai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: ai-service/Dockerfile
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in gradle.properties}
+      DB_USER: ${DB_USER:-swissquote}
+      AI_DB_HOST: ai-postgres
+      AI_DB_NAME: ${AI_DB_NAME:-swissquote_ai}
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-local-ai-service-token}
+    expose:
+      - "8080"
+    depends_on:
+      ai-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q 'UP'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   api-gateway:
     image: nginx:1.27-alpine
@@ -58,7 +98,9 @@ services:
     depends_on:
       - api-gateway
       - backend
+      - ai-service
       - frontend
 
 volumes:
   postgres-data:
+  ai-postgres-data:

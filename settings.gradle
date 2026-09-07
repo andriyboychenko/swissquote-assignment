@@ -13,4 +13,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "swissquote-fullstack"
-include("backend")
+include("backend", "ai-service")

@@ -75,6 +75,17 @@ class InfrastructureConfigurationTests {
         assertThat(config).contains("try_files $uri $uri/ /index.html");
     }
 
+    @Test
+    void springSecurityUsesCookieBackedCsrfProtection() throws IOException {
+        String config = Files.readString(findProjectRoot().resolve("backend/src/main/java/com/example/swissquote/config/SecurityConfig.java"));
+
+        assertThat(config).contains("CookieCsrfTokenRepository.withHttpOnlyFalse()");
+        assertThat(config).contains("CsrfTokenRequestAttributeHandler");
+        assertThat(config).contains("csrfTokenRepository");
+        assertThat(config).contains("CsrfCookieFilter");
+        assertThat(config).doesNotContain("csrf.disable()");
+    }
+
     private static Path findProjectRoot() {
         Path current = Path.of("").toAbsolutePath();
         if (Files.exists(current.resolve("docker-compose.yml"))) {
