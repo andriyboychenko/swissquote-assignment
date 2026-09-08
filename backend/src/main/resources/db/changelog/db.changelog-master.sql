@@ -367,8 +367,8 @@ SELECT
     transaction_id,
     CASE
         WHEN activity_type = 'PAYMENT' THEN 'c8692f01-167f-449d-9286-571f1c1f6f01'::UUID
-        WHEN activity_type = 'CRYPTO' THEN '27a67f38-d581-4015-b738-e468d8736007'::UUID
-        ELSE '1d16706c-8c4a-41b4-b99d-2e6f1e566003'::UUID
+        WHEN activity_type = 'CRYPTO' THEN 'c41d73e7-3d8a-4f3d-bab4-b6054cf7957e'::UUID
+        ELSE '3c8ee0aa-cf16-406d-a0e7-49dbf7466601'::UUID
     END,
     created_at + INTERVAL '2 minutes',
     CASE
