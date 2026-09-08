@@ -52,11 +52,12 @@ class InfrastructureConfigurationTests {
 
         assertThat(config).contains("listen 8080");
         assertThat(config).contains("resolver 127.0.0.11 valid=10s ipv6=off");
-        assertThat(config).contains("set $backend_upstream backend:8080");
+        assertThat(config).contains("upstream backend_pool {");
+        assertThat(config).contains("server backend:8080");
         assertThat(config).contains("location /api/");
-        assertThat(config).contains("proxy_pass http://$backend_upstream");
+        assertThat(config).contains("proxy_pass http://backend_pool");
         assertThat(config).contains("location /actuator/");
-        assertThat(config).contains("proxy_pass http://$backend_upstream");
+        assertThat(config).contains("proxy_pass http://backend_pool");
         assertThat(config).contains("location /oauth2/");
         assertThat(config).contains("location /login/");
         assertThat(config).contains("location /mock-login");

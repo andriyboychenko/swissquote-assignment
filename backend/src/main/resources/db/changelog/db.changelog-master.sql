@@ -275,45 +275,7 @@ WHERE row_number % 2 = 0;
 
 --changeset andriy:0013-first-five-demo-risk-bands
 --comment Pin the first five documented demo customers to predictable LOW, LOW, MEDIUM, MEDIUM, HIGH analysis examples.
-WITH demo_risk_bands(customer_id, risk_band) AS (
-    VALUES
-        ('005514e6-1ebe-8010-de91-aff66d1d9484'::UUID, 'LOW'),
-        ('0a3ab26d-12b1-0efc-65d4-a2d6cc72ec67'::UUID, 'LOW'),
-        ('0abe215d-4832-1215-fe7a-264bfb844be9'::UUID, 'MEDIUM'),
-        ('0c534877-7dee-ed33-5278-68e39c8fe785'::UUID, 'MEDIUM'),
-        ('0ddc4d69-0dcf-fba9-15c2-88a68e6665de'::UUID, 'HIGH')
-)
-DELETE FROM ai_analysis_evidence evidence
-USING ai_analysis_results result, ai_analysis_requests request, demo_risk_bands bands
-WHERE evidence.analysis_result_id = result.analysis_result_id
-  AND result.analysis_request_id = request.analysis_request_id
-  AND request.customer_id = bands.customer_id;
-
-WITH demo_risk_bands(customer_id, risk_band) AS (
-    VALUES
-        ('005514e6-1ebe-8010-de91-aff66d1d9484'::UUID, 'LOW'),
-        ('0a3ab26d-12b1-0efc-65d4-a2d6cc72ec67'::UUID, 'LOW'),
-        ('0abe215d-4832-1215-fe7a-264bfb844be9'::UUID, 'MEDIUM'),
-        ('0c534877-7dee-ed33-5278-68e39c8fe785'::UUID, 'MEDIUM'),
-        ('0ddc4d69-0dcf-fba9-15c2-88a68e6665de'::UUID, 'HIGH')
-)
-DELETE FROM ai_analysis_results result
-USING ai_analysis_requests request, demo_risk_bands bands
-WHERE result.analysis_request_id = request.analysis_request_id
-  AND request.customer_id = bands.customer_id;
-
-WITH demo_risk_bands(customer_id, risk_band) AS (
-    VALUES
-        ('005514e6-1ebe-8010-de91-aff66d1d9484'::UUID, 'LOW'),
-        ('0a3ab26d-12b1-0efc-65d4-a2d6cc72ec67'::UUID, 'LOW'),
-        ('0abe215d-4832-1215-fe7a-264bfb844be9'::UUID, 'MEDIUM'),
-        ('0c534877-7dee-ed33-5278-68e39c8fe785'::UUID, 'MEDIUM'),
-        ('0ddc4d69-0dcf-fba9-15c2-88a68e6665de'::UUID, 'HIGH')
-)
-DELETE FROM ai_analysis_requests request
-USING demo_risk_bands bands
-WHERE request.customer_id = bands.customer_id;
-
+--validCheckSum 9:7ac11a302098d0d0849cb2a53927e55c
 WITH demo_risk_bands(customer_id, risk_band) AS (
     VALUES
         ('005514e6-1ebe-8010-de91-aff66d1d9484'::UUID, 'LOW'),

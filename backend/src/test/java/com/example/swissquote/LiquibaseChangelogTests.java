@@ -187,6 +187,7 @@ class LiquibaseChangelogTests {
             String changelog = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
 
             assertThat(changelog).contains("--changeset andriy:0013-first-five-demo-risk-bands");
+            assertThat(changelog).contains("--validCheckSum 9:7ac11a302098d0d0849cb2a53927e55c");
             assertThat(changelog).contains("'005514e6-1ebe-8010-de91-aff66d1d9484'::UUID, 'LOW'");
             assertThat(changelog).contains("'0a3ab26d-12b1-0efc-65d4-a2d6cc72ec67'::UUID, 'LOW'");
             assertThat(changelog).contains("'0abe215d-4832-1215-fe7a-264bfb844be9'::UUID, 'MEDIUM'");
@@ -196,6 +197,21 @@ class LiquibaseChangelogTests {
             assertThat(changelog).contains("WHEN risk_band = 'HIGH' THEN row_number <= 7");
             assertThat(changelog).contains("DELETE FROM ai_analysis_requests");
             assertThat(changelog).contains("risk_indicators = '[]'::jsonb");
+        }
+    }
+
+    @Test
+    void coreRiskBandChangesetDoesNotReferenceAiDatabaseTables() throws IOException {
+        try (InputStream inputStream = getClass().getResourceAsStream("/db/changelog/db.changelog-master.sql")) {
+            assertThat(inputStream).isNotNull();
+
+            String changelog = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+            String riskBandChangeset = changelog.substring(
+                    changelog.indexOf("--changeset andriy:0013-first-five-demo-risk-bands"),
+                    changelog.indexOf("--changeset andriy:0014-randomize-demo-risk-placement")
+            );
+
+            assertThat(riskBandChangeset).doesNotContain("ai_analysis_");
         }
     }
 }

@@ -20,7 +20,7 @@ class AgentHarnessTests {
         assertThat(harness).contains("./scripts/agent-harness.sh");
         assertThat(harness).contains("./gradlew :backend:test");
         assertThat(harness).contains("npm test");
-        assertThat(harness).contains("docker compose --env-file gradle.properties config --quiet");
+        assertThat(harness).contains("docker compose config --quiet");
         assertThat(harness).contains("AI Feature Rules");
         assertThat(harness).contains("Version and test prompts");
         assertThat(harness).contains("Require human review for high-impact decisions");
@@ -51,7 +51,7 @@ class AgentHarnessTests {
         assertThat(script).contains("set -eu");
         assertThat(script).contains("./gradlew :backend:test");
         assertThat(script).contains("npm test");
-        assertThat(script).contains("docker compose --env-file gradle.properties config --quiet");
+        assertThat(script).contains("docker compose config --quiet");
     }
 
     private static Path findProjectRoot() {
