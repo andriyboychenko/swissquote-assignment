@@ -5,12 +5,12 @@ import java.util.Objects;
 
 public record RiskSignalSummary(
         int triggeredSignals,
-        BigDecimal totalScoreContribution,
+        BigDecimal averageScoreContribution,
         BigDecimal maxScoreContribution
 ) {
 
     public RiskSignalSummary {
-        Objects.requireNonNull(totalScoreContribution, "totalScoreContribution must not be null");
+        Objects.requireNonNull(averageScoreContribution, "averageScoreContribution must not be null");
         Objects.requireNonNull(maxScoreContribution, "maxScoreContribution must not be null");
     }
 }

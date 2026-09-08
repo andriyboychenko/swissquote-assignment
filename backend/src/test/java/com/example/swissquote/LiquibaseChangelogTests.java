@@ -123,6 +123,19 @@ class LiquibaseChangelogTests {
     }
 
     @Test
+    void masterChangelogRandomizesFirstFiveRiskPlacement() throws IOException {
+        try (InputStream inputStream = getClass().getResourceAsStream("/db/changelog/db.changelog-master.sql")) {
+            assertThat(inputStream).isNotNull();
+
+            String changelog = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertThat(changelog).contains("--changeset andriy:0014-randomize-demo-risk-placement");
+            assertThat(changelog).contains("ORDER BY MD5(tx.transaction_id::TEXT)");
+            assertThat(changelog).contains("Distribute existing first-five flagged transactions across each customer's timeline");
+        }
+    }
+
+    @Test
     void masterChangelogDropsLegacyMarketQuoteTable() throws IOException {
         try (InputStream inputStream = getClass().getResourceAsStream("/db/changelog/db.changelog-master.sql")) {
             assertThat(inputStream).isNotNull();

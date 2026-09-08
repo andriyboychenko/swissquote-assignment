@@ -31,7 +31,7 @@ class DeterministicAiAnalysisGeneratorTests {
         var result = generator.generate(
                 UUID.randomUUID(),
                 report,
-                new RiskSignalSummary(9, BigDecimal.valueOf(130), BigDecimal.valueOf(25)),
+                new RiskSignalSummary(3, BigDecimal.valueOf(20), BigDecimal.valueOf(25)),
                 List.of(new PolicyEvidence("policy://one", "Review high risk activity.", BigDecimal.valueOf(0.9))),
                 Instant.parse("2026-09-05T08:00:00Z")
         );
@@ -42,7 +42,7 @@ class DeterministicAiAnalysisGeneratorTests {
         assertThat(result.summary()).contains("Review Window: Latest 100 loaded activities");
         assertThat(result.summary()).contains("1. CONTRIBUTING SIGNALS:");
         assertThat(result.summary()).contains("Activity mix: 30 card, 30 payment, 40 crypto activities reviewed");
-        assertThat(result.summary()).contains("Found 9 triggered risk signals with total risk score 130.");
+        assertThat(result.summary()).contains("Found 3 triggered risk signals with average risk score 20.00.");
         assertThat(result.summary()).contains("2. CUSTOMER IMPACT:");
         assertThat(result.summary()).contains("Risk level classified as HIGH.");
         assertThat(result.summary()).contains("Consider a temporary manual review hold on channels connected to highlighted risk signals.");

@@ -28,7 +28,7 @@ public class DeterministicAiAnalysisGenerator implements AiAnalysisGenerator {
             List<PolicyEvidence> policyEvidence,
             Instant generatedAt
     ) {
-        RiskLevel riskLevel = toRiskLevel(riskSignalSummary.totalScoreContribution());
+        RiskLevel riskLevel = toRiskLevel(riskSignalSummary.averageScoreContribution());
         String recommendations = switch (riskLevel) {
             case HIGH -> "Escalate to a senior operator, review recent counterparties, and verify policy evidence before customer contact.";
             case MEDIUM -> "Review the highlighted risk signals, compare with prior activity, and monitor the next customer actions.";
@@ -63,7 +63,7 @@ public class DeterministicAiAnalysisGenerator implements AiAnalysisGenerator {
             RiskLevel riskLevel,
             String recommendations
     ) {
-        String totalRiskScore = riskSignalSummary.totalScoreContribution().stripTrailingZeros().toPlainString();
+        String averageRiskScore = riskSignalSummary.averageScoreContribution().setScale(2).toPlainString();
 
         return """
                 RISK ALERT SUMMARY
@@ -72,7 +72,7 @@ public class DeterministicAiAnalysisGenerator implements AiAnalysisGenerator {
 
                 1. CONTRIBUTING SIGNALS:
                    - Activity mix: %d card, %d payment, %d crypto activities reviewed
-                   - Risk model: Found %d triggered risk signals with total risk score %s.
+                   - Risk model: Found %d triggered risk signals with average risk score %s.
                    - Highest signal contribution: %s risk score
 
                 2. CUSTOMER IMPACT:
@@ -88,7 +88,7 @@ public class DeterministicAiAnalysisGenerator implements AiAnalysisGenerator {
                 activityReport.summary().paymentActivities(),
                 activityReport.summary().cryptoActivities(),
                 riskSignalSummary.triggeredSignals(),
-                totalRiskScore,
+                averageRiskScore,
                 riskSignalSummary.maxScoreContribution().stripTrailingZeros().toPlainString(),
                 riskLevel,
                 customerImpact(riskLevel),
@@ -104,12 +104,12 @@ public class DeterministicAiAnalysisGenerator implements AiAnalysisGenerator {
         };
     }
 
-    private static RiskLevel toRiskLevel(BigDecimal totalScore) {
-        if (totalScore.compareTo(BigDecimal.valueOf(120)) >= 0) {
+    private static RiskLevel toRiskLevel(BigDecimal averageScore) {
+        if (averageScore.compareTo(BigDecimal.valueOf(20)) >= 0) {
             return RiskLevel.HIGH;
         }
 
-        if (totalScore.compareTo(BigDecimal.valueOf(40)) >= 0) {
+        if (averageScore.compareTo(BigDecimal.valueOf(12)) >= 0) {
             return RiskLevel.MEDIUM;
         }
 

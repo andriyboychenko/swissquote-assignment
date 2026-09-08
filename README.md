@@ -1,234 +1,61 @@
-# Swissquote Full-Stack Docker Example
+# Swissquote Customer Activity Analytics
 
-This project runs a React UI, an authenticated core Spring Boot service, an internal AI analysis Spring Boot service, and separate PostgreSQL database containers.
+A Dockerized customer activity and AI risk-analysis dashboard for financial-services operators.
+
+## How to Run the Application
+
+Docker is required. Install Docker Desktop on [macOS](https://docs.docker.com/desktop/setup/install/mac-install/) or [Windows](https://docs.docker.com/desktop/setup/install/windows-install/), or install [Docker Engine and the Compose plugin on Linux](https://docs.docker.com/engine/install/).
+
+Verify the installation:
+
+```bash
+docker --version
+docker compose version
+```
+
+From the project root, start the complete stack with one command:
+
+```bash
+docker compose up --build -d
+```
+
+Open the application at <http://localhost:3000>.
+
+The demo starts with mock operator login enabled.
 
 ## Architecture
 
-- `frontend`: React app built with Vite and served by Nginx
-- `load-balancer`: public Nginx entrypoint on port `3000`
-- `api-gateway`: internal Nginx gateway for backend API traffic
-- `backend`: core Spring Boot service for authentication, customer search, transaction retrieval, filtering, sorting, and risk signals
-- `ai-service`: internal Spring Boot service for RAG policy retrieval, risk analysis, recommendations, and persisted analysis history
-- `core-postgres`: PostgreSQL database owned by the core service
-- `ai-postgres`: separate PostgreSQL database owned by the AI service
-
-Browser traffic enters through the load balancer. Requests under `/api/`, `/actuator/`, `/oauth2/`, `/login/`, `/mock-login`, and `/logout` are forwarded to the API gateway, which forwards them to the core service. The core service keeps the authenticated browser session and calls the AI service through a private Docker-network endpoint protected by `X-AI-Service-Token`. After login, the frontend shows the operator dashboard for customer lookup, activity review, filtering, sorting, lazy-loaded rows, and AI risk analysis requests.
-
-The core service owns customer and transaction data. The AI service receives a bounded activity/risk snapshot from the core service and owns only AI analysis requests, results, and policy evidence. This keeps database ownership explicit and allows the AI service to scale independently later. The AI service does not query the core database directly.
-
-Database schema changes are managed by Liquibase using formatted SQL changelogs under `backend/src/main/resources/db/changelog`.
-
-Database entity classes are kept under `backend/src/main/java/com/example/swissquote/infrastructure/persistence/entity`. Current JPA entities are `CustomerEntity` for simple customer lookup/autocomplete and `OperatorUserEntity` for authenticated operator persistence. Customer search is isolated behind `CustomerSearchService` and `CustomerSearchRepository`, backed directly by `JpaCustomerRepository` today so it can be replaced by another search implementation later. The joined customer activity report still uses SQL projections through `JdbcCustomerActivityQueryAdapter`, so `transactions`, `card_activity`, `payment_activity`, `crypto_activity`, `risk_rules`, and `risk_assessments` do not have JPA entity classes yet.
-
-The initial database includes compact Liquibase demo data: 100 customers with 100 activities each, for 10,000 total customer activities split across card, payment, and crypto records. The seed data is generated with SQL ranges instead of a large committed data dump, and it uses deterministic variation so customers do not all share the same activity/status pattern.
-
-## Requirements
-
-- Docker
-- Docker Compose
-
-## Start Everything
-
-Create your local `gradle.properties` file first:
-
-```bash
-cp gradle.properties.example gradle.properties
-```
-
-For this demo, `gradle.properties` can contain:
-
-**Important**: do not commit real database passwords. Keep passwords out of Git and store them in local ignored files for demos, or in a secret manager/deployment platform secrets for shared environments.
-```properties
-DB_NAME=swissquote
-DB_USER=swissquote
-DB_PASSWORD=replace-with-local-demo-password
-```
-
-From the project root, run:
-
-```bash
-docker compose --env-file gradle.properties up --build
-```
-
-Then open:
-
-- App through load balancer: <http://localhost:3000>
-- Load balancer health: <http://localhost:3000/health>
-- Backend health through gateway path: <http://localhost:3000/actuator/health>
-- Google login start path, only when local Google OAuth credentials are configured: <http://localhost:3000/oauth2/authorization/google>
-- Mock demo login path: <http://localhost:3000/mock-login?operator=analyst-one>
-- Core PostgreSQL inside Docker network: `core-postgres:5432`
-
-After login, operators can search customer activity by Customer ID. Suspicious rows are highlighted from persisted `transactions.risk_indicators` JSONB metadata that is generated from risk-rule assessments. The backend endpoint is:
-
-```text
-GET /api/customers/{customerId}/activities?limit=50&offset=0
-```
-
-Activity review supports server-side filtering and sorting through query parameters such as `createdFrom`, `createdTo`, `activityType`, `status`, `amountMin`, `amountMax`, `currency`, `counterparty`, `channel`, `detail`, `riskOnly`, `sortBy`, and `sortDirection`. AI recommendations can apply the flagged-activity filter from the UI or with `Alt+R`.
-
-Operators can request and review persisted AI analysis for a customer through:
-
-```text
-POST /api/customers/{customerId}/ai-analyses
-GET /api/customers/{customerId}/ai-analyses
-```
-
-The current implementation uses a local deterministic analyzer behind the `AiAnalysisGenerator` interface and a generated policy corpus under `backend/src/main/resources/policies`, packaged into the AI service. It persists request status, result text, risk level, recommendations, model/prompt version, and retrieved policy evidence in `ai-postgres` with concrete policy section references. This keeps the contract ready for a later Spring AI implementation with a real chat model, vector-store-backed RAG, token/latency audit events, and asynchronous worker execution.
-
-Policy evidence can be opened from the UI. The backend resolves bundled policy sections through:
-
-```text
-GET /api/policies/{documentName}/sections/{sectionAnchor}
-```
-
-## Google Login Setup
-
-Google login is implemented with Spring Security OAuth2 Login.
-
-Google login is disabled automatically when `GOOGLE_OAUTH_CLIENT_SECRET` is not present. The secret is intentionally not provided in GitHub; for a company demo, configure it locally before the presentation and show the login flow from that local environment.
-
-Create an OAuth 2.0 Web Client in Google Cloud Console:
-
-- Application type: `Web application`
-- Authorized JavaScript origin: `http://localhost:3000`
-- Authorized redirect URI: `http://localhost:3000/login/oauth2/code/google`
-
-Then add the credentials to your local `gradle.properties`:
-
-```properties
-GOOGLE_OAUTH_CLIENT_ID=your-google-client-id
-GOOGLE_OAUTH_CLIENT_SECRET=your-google-client-secret
-GOOGLE_OAUTH_REDIRECT_URI={baseUrl}/login/oauth2/code/{registrationId}
-```
-
-Restart the stack after changing credentials:
-
-```bash
-docker compose --env-file gradle.properties up --build
-```
-
-The frontend asks `/api/auth/me` whether Google login is enabled. If `GOOGLE_OAUTH_CLIENT_SECRET` is missing, the Google option is shown disabled below the demo operator login with an explanation that the secret is not committed to GitHub. When enabled, the frontend Google button redirects to `/oauth2/authorization/google`; the demo operator button redirects to `/mock-login?operator=analyst-one`. The load balancer and API gateway forward `/oauth2/`, `/login/`, `/mock-login`, and `/logout` to the backend.
-
-Authenticated operators are written to the database in `operator_users`. The table intentionally avoids personal profile data: it stores only the OAuth provider, a SHA-256 hash of the provider subject, blocked status, optional block reason, and timestamps. AI analysis requests also store the operator display name shown at request time so saved reviews can show who generated them. Operator email is not persisted by this application.
-
-Important: do not commit real OAuth client secrets. Keep them in local ignored files for demos and in deployment secrets for real environments.
-
-## Mock Demo Login
-
-The Docker demo enables mock operator login by default with `MOCK_AUTH_ENABLED=true`. The landing page includes a `Demo operator` option that opens a chooser modal. Each selected operator starts a real backend session through:
-
-```text
-GET /mock-login?operator=analyst-one
-```
-
-Available mock operators:
-
-- `analyst-one`: Sarah Connor
-- `analyst-two`: Lisbeth Salander
-- `risk-reviewer`: John McClane
-
-The backend creates a normal Spring Security session and `/api/auth/me` records the login through the same `operator_users` persistence flow as OAuth login, using provider `mock` and a hashed mock subject. AI analysis records may store the mock operator display name for audit attribution. Set `MOCK_AUTH_ENABLED=false` for non-demo deployments.
-
-## Database Connection
-
-From another Docker container on the same Compose network, connect with:
-
-```text
-Host: core-postgres
-Port: 5432
-Database: swissquote
-User: swissquote
-Password: value from your local ignored gradle.properties
-
-The AI database is available only inside the Compose network at `ai-postgres:5432`, database `swissquote_ai`, with the same demo password. The two databases intentionally use separate names and volumes even though the local demo reuses `DB_PASSWORD`.
-```
-
-From your host machine, PostgreSQL is not published by default. To connect from a local DB client such as IntelliJ Database, DBeaver, or DataGrip, temporarily publish the PostgreSQL port in `docker-compose.yml`, for example `5432:5432`, then use:
-
-```text
-Host: localhost
-Port: 5432
-Database: swissquote
-User: swissquote
-Password: value from your local ignored gradle.properties
-```
-
-Important: do not publish database ports or commit demo passwords in production. Use private networking and secrets instead.
-
-## Stop Everything
-
-```bash
-docker compose down
-```
-
-To also delete the PostgreSQL data volume:
-
-```bash
-docker compose down -v
-```
-
-If you change `DB_PASSWORD` after PostgreSQL has already created its Docker volume, recreate the database volume with `docker compose down -v` before starting again.
-
-## Demo Data
-
-Liquibase creates demo data on a fresh database:
-
-```text
-Customers: 100
-Activities per customer: 100
-Total activities: 10,000
-Activity types: card, payment, crypto
-Risk rules: 12 demo rules
-Risk assessments: deterministic subset for risky-looking activity
-Pagination: activity review returns 50 rows by default, caps requests at 100 rows, and loads additional rows on scroll
-AI analysis: requests, results, and retrieved policy evidence are persisted once an operator asks for analysis
-Policy corpus: generated Markdown policy files live under backend resources and are cited by analysis evidence
-Suspicious rows: activity rows include JSONB-backed risk indicators generated from risk assessments
-First five demo IDs: curated as 2 low risk, 2 medium risk, and 1 high risk customer for predictable demos
-Known low-risk customers: `005514e6-1ebe-8010-de91-aff66d1d9484`, `0a3ab26d-12b1-0efc-65d4-a2d6cc72ec67`
-```
-
-To fetch one demo customer ID from the running database:
-
-```bash
-docker compose --env-file gradle.properties exec -T core-postgres psql -U swissquote -d swissquote -c "SELECT customer_id FROM customers ORDER BY customer_id LIMIT 5;"
-```
-
-To recreate the demo data from scratch, delete the PostgreSQL volume and start again:
-
-```bash
-docker compose --env-file gradle.properties down -v
-docker compose --env-file gradle.properties up --build
-```
-
-## Deploy Frontend To Vercel
-
-The frontend is Vercel-ready from the `frontend` directory.
-
-In Vercel project settings:
-
-- Root Directory: `frontend`
-- Framework Preset: Vite
-- Build Command: `npm run build`
-- Output Directory: `dist`
-
-Add `VITE_`-prefixed environment variables only when the browser needs non-secret runtime configuration.
-
-## Security Notes
-
-Spring Security uses cookie-backed CSRF protection. The backend sends an `XSRF-TOKEN` cookie, and mutating frontend requests send it back through the `X-XSRF-TOKEN` header. API helpers should use `frontend/src/api/csrfApi.js` for POST, PUT, PATCH, and DELETE requests.
-
-Logout is submitted as a POST action because it changes the authenticated session. GET endpoints should remain side-effect free.
-
-## Scaling Notes
-
-Keeping frontend, backend, and database in separate containers is the correct approach for growth. Each service can be built, restarted, logged, and scaled independently.
-
-For local experiments, you can scale the stateless services independently:
-
-```bash
-docker compose --env-file gradle.properties up --build --scale backend=3 --scale ai-service=2 --scale frontend=2
-```
-
-For real production scaling, use a load balancer or orchestrator such as Kubernetes, ECS, or Cloud Run, and strongly consider managed PostgreSQL instead of running the database on the same host.
+![Swissquote application architecture](docs/images/architecture.png)
+
+The stack contains:
+
+- Nginx load balancer as the public entry point on port `3000`.
+- Frontend container serving the built React application through Nginx.
+- Nginx API gateway routing backend requests.
+- Core Spring Boot service for authentication, customer search, activity retrieval, filtering, sorting, and risk signals.
+- AI Spring Boot service for policy retrieval, risk analysis, recommendations, and analysis history.
+- Separate PostgreSQL databases for core customer data and AI analysis data.
+
+The core service sends a bounded activity and risk snapshot to the AI service. The AI service does not query the core database directly.
+
+The application services can scale horizontally. The current gateway uses sticky sessions for backend replicas because authenticated browser sessions are stored in the core service. Production deployments should use shared or externalized session storage.
+
+## Main Design Decisions
+
+- **Separate containers:** frontend, gateway, core service, AI service, and databases have independent build, deployment, and scaling boundaries.
+- **Nginx at the edge:** the load balancer provides the public entry point; the internal API gateway isolates browser routing from backend services.
+- **Optional horizontal scaling:** frontend, API gateway, core, and AI services can run as multiple replicas when traffic requires it. The default demo starts one instance of each service.
+- **Service-owned data:** the core service owns customers, transactions, activity details, operators, rules, and risk assessments. The AI service owns analysis requests, results, policy evidence, and audit metadata.
+- **Separated databases:** transaction and customer reads are isolated from AI-analysis writes and history queries. This prevents AI workloads from competing with the transaction-read workload and allows the transaction source to remain read-only or scale independently through a read replica when it is under heavy load.
+- **Liquibase with SQL:** database schema and demo data are synchronized through formatted SQL changelogs under `backend/src/main/resources/db/changelog`.
+- **Server-side activity querying:** filtering, sorting, pagination, and lazy loading are performed by the backend. The UI loads 50 rows by default and the server caps a request at 100 rows.
+- **Explicit persistence boundaries:** simple customer lookup uses Spring Data JPA; the joined activity report uses a focused SQL adapter for complex queries.
+- **AI extension point:** the AI service currently uses a deterministic analyzer and bundled policy documents. Its interface is designed for a later Spring AI model, vector store, and asynchronous worker flow.
+- **Risk scoring:** risk analysis uses the average contribution of triggered risk signals and persists the result, recommendations, policy evidence, and generating operator.
+- **Security:** CSRF protection, parameterized database access, restricted gateway routing, escaped UI rendering, bounded AI inputs, and environment-only OAuth secrets are used for the demo flow.
+- **Demo configuration:** the tracked database password and local mock token are intentionally disposable and must be replaced with managed secrets in any real deployment.
+
+## Assumptions
+
+- **Mocked operators:** authentication uses mock operators for the demo. In a production system, this would be replaced with a dedicated authentication and identity service, including operator provisioning, roles, access policies, and account lifecycle management.
+- **Read-only transaction source:** transaction data is assumed to arrive from a PostgreSQL read replica populated by an upstream transaction platform. The demo focuses on searching, filtering, risk analysis, and review, so transaction insertion and ingestion workflows are intentionally not implemented here.

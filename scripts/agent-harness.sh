@@ -13,6 +13,6 @@ echo "== Frontend tests =="
 )
 
 echo "== Docker Compose config =="
-docker compose --env-file gradle.properties config --quiet
+docker compose config --quiet
 
 echo "Agent harness checks passed."

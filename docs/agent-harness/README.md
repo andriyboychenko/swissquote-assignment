@@ -26,6 +26,7 @@ Read it before changing code, infrastructure, or tests.
 - `load-balancer`: public Nginx entrypoint on `localhost:3000`.
 - `frontend`: React/Vite app served by Nginx.
 - `api-gateway`: internal Nginx gateway for backend traffic.
+- The API gateway uses Nginx `ip_hash` affinity for backend replicas and trusts `X-Real-IP` only from the Docker internal address range used by the load balancer.
 - `backend`: authenticated core Spring Boot service built with Gradle. It owns customers, transactions, activity filtering, and risk signals.
 - `ai-service`: internal Spring Boot service for RAG and persisted AI analysis. It receives bounded snapshots from the core service.
 - `core-postgres`: PostgreSQL database with the core Liquibase schema.
@@ -35,6 +36,7 @@ Read it before changing code, infrastructure, or tests.
 - Liquibase seeds a compact demo dataset: 100 customers with 100 activities each, for 10,000 total card/payment/crypto activities and 12 demo risk rules. Demo activity types and statuses use deterministic per-customer variation.
 - Customer `005514e6-1ebe-8010-de91-aff66d1d9484` is intentionally kept low risk with no risk assessments or row risk indicators for predictable demo testing.
 - The first five documented demo customer IDs should remain predictable for presentations: 2 LOW risk examples, 2 MEDIUM risk examples, and 1 HIGH risk example.
+- Their flagged rows should be distributed deterministically across the activity timeline, so date sorting does not place every risk indicator at one end of the table.
 - Legacy quote-demo database objects such as `market_quote` are not part of the current domain and are removed through Liquibase cleanup changesets.
 - AI analysis is available as a persisted customer workflow. The first implementation uses a local deterministic analyzer and a generated Markdown policy corpus behind application interfaces; keep that boundary when replacing it with Spring AI, vector-store-backed RAG, Kafka workers, or external model providers.
 
@@ -54,9 +56,9 @@ Browser
 ## Secrets
 
 - Do not commit real passwords or local secrets.
-- `gradle.properties` is intentionally ignored by Git.
-- Use `gradle.properties.example` as the safe template.
-- Docker Compose must keep using `${DB_PASSWORD:?Set DB_PASSWORD in gradle.properties}` so startup fails when the password is missing.
+- `gradle.properties` is intentionally ignored by Git and may be used for local overrides or secrets.
+- The tracked Compose file contains disposable demo configuration so a fresh checkout starts without a local properties file.
+- Real database passwords and service credentials must be supplied through ignored environment configuration or a secret manager.
 - Google OAuth credentials must remain in local ignored config or deployment secrets.
 - `AI_SERVICE_TOKEN` must be supplied to both the core and AI containers; it is not a browser credential and must never be exposed in frontend code.
 - Google login must be disabled and shown as unavailable below the demo operator login when `GOOGLE_OAUTH_CLIENT_SECRET` is absent. The GitHub demo repo should explain that the secret is provided only through local presentation configuration.
@@ -87,6 +89,7 @@ Browser
 - Card activity details include masked PAN, MCC, and the decline reason when one is present; render decline reason on a separate line in the same Details cell, while keeping the same detail text searchable through the `detail` filter.
 - `GET /api/customers?query={prefix}&limit={limit}`: authenticated autocomplete endpoint for bounded Customer ID suggestions.
 - Customer activity responses must be DTO records with summary counts and activity rows. Do not return raw persistence entities.
+- Summary counts represent the full customer activity set and must remain unchanged when table filters are applied; filtered totals are used only for table pagination.
 - Customer activity rows include `riskIndicators` from `transactions.risk_indicators` JSONB metadata. Keep this metadata synchronized from `risk_assessments`/`risk_rules` when seed logic or scoring behavior changes.
 - Customer activity queries should stay read-only and projection-oriented.
 - Customer search is a separate application capability under `application.customer`, exposed through `CustomerSearchController`. Keep it replaceable so a future implementation can move from PostgreSQL-backed prefix search to a dedicated search service without changing the activity report workflow.
@@ -153,6 +156,7 @@ Browser
 - Financial amount columns should make movement direction scannable with colored icons and amount color. Use a small green up arrow for incoming movement, a small red down arrow for outgoing movement, and a question-mark icon with an app-rendered tooltip for pending or no-movement states.
 - Suspicious activity rows should use persisted `riskIndicators` to show a subtle row highlight plus a compact indicator tooltip with rule names and score contributions.
 - Risk scoring UI should label score contributions as `risk score`, not generic `points`, so operators understand the number is part of the risk model.
+- AI analysis risk level and summary should use the rounded average contribution across triggered signals, not the aggregate total; keep the highest individual contribution as separate context.
 - Suspicious-row risk tooltips should include a concise operator recommendation for each triggered signal, derived from the rule category until backend-provided rule recommendations exist.
 - Compact ellipsized table values, such as counterparty, should use app-rendered hover/focus tooltips instead of relying only on native `title` behavior.
 
@@ -197,13 +201,13 @@ The script runs:
 ```bash
 ./gradlew :backend:test :ai-service:test
 cd frontend && npm test
-docker compose --env-file gradle.properties config --quiet
+docker compose config --quiet
 ```
 
 Optional runtime verification after containers are started:
 
 ```bash
-docker compose --env-file gradle.properties up --build
+docker compose up --build
 curl -s http://localhost:3000/health
 curl -s http://localhost:3000/actuator/health
 ```

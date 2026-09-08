@@ -15,7 +15,7 @@ public class JdbcCustomerRiskSignalRepository implements CustomerRiskSignalRepos
     private static final String SUMMARY_SQL = """
             SELECT
                 COUNT(assessment.assessment_id)::INTEGER AS triggered_signals,
-                COALESCE(SUM(assessment.score_contribution), 0)::NUMERIC AS total_score_contribution,
+                COALESCE(ROUND(AVG(assessment.score_contribution), 2), 0)::NUMERIC AS average_score_contribution,
                 COALESCE(MAX(assessment.score_contribution), 0)::NUMERIC AS max_score_contribution
             FROM risk_assessments assessment
             JOIN transactions tx ON tx.transaction_id = assessment.transaction_id
@@ -35,7 +35,7 @@ public class JdbcCustomerRiskSignalRepository implements CustomerRiskSignalRepos
                 new MapSqlParameterSource("customerId", customerId),
                 (resultSet, rowNumber) -> new RiskSignalSummary(
                         resultSet.getInt("triggered_signals"),
-                        resultSet.getBigDecimal("total_score_contribution"),
+                        resultSet.getBigDecimal("average_score_contribution"),
                         resultSet.getBigDecimal("max_score_contribution")
                 )
         );

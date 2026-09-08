@@ -452,6 +452,46 @@ SET risk_indicators = indicator_values.risk_indicators
 FROM indicator_values
 WHERE indicator_values.transaction_id = tx.transaction_id;
 
+--changeset andriy:0014-randomize-demo-risk-placement
+--comment Distribute existing first-five flagged transactions across each customer's timeline without changing risk bands.
+WITH demo_customers(customer_id) AS (
+    VALUES
+        ('005514e6-1ebe-8010-de91-aff66d1d9484'::UUID),
+        ('0a3ab26d-12b1-0efc-65d4-a2d6cc72ec67'::UUID),
+        ('0abe215d-4832-1215-fe7a-264bfb844be9'::UUID),
+        ('0c534877-7dee-ed33-5278-68e39c8fe785'::UUID),
+        ('0ddc4d69-0dcf-fba9-15c2-88a68e6665de'::UUID)
+),
+flagged_transactions AS (
+    SELECT
+        tx.transaction_id,
+        tx.customer_id,
+        ROW_NUMBER() OVER (
+            PARTITION BY tx.customer_id
+            ORDER BY MD5(tx.transaction_id::TEXT)
+        ) AS flagged_number,
+        MOD(ABS(HASHTEXTEXTENDED(tx.transaction_id::TEXT, 0)), 90) AS timeline_slot
+    FROM transactions tx
+    JOIN demo_customers demo ON demo.customer_id = tx.customer_id
+    WHERE EXISTS (
+        SELECT 1
+        FROM risk_assessments assessment
+        WHERE assessment.transaction_id = tx.transaction_id
+    )
+),
+customer_start AS (
+    SELECT customer_id, MIN(created_at) AS first_created_at
+    FROM transactions
+    WHERE customer_id IN (SELECT customer_id FROM demo_customers)
+    GROUP BY customer_id
+)
+UPDATE transactions tx
+SET created_at = customer_start.first_created_at
+    + ((flagged_transactions.timeline_slot + flagged_transactions.flagged_number) * INTERVAL '4 hours')
+FROM flagged_transactions
+JOIN customer_start ON customer_start.customer_id = flagged_transactions.customer_id
+WHERE tx.transaction_id = flagged_transactions.transaction_id;
+
 --changeset andriy:0009-transaction-risk-indicators
 --comment Persist row-level risk indicators as JSONB metadata for customer activity review highlighting.
 ALTER TABLE transactions

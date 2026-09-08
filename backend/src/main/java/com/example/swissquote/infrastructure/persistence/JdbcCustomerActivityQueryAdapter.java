@@ -65,6 +65,20 @@ public class JdbcCustomerActivityQueryAdapter implements CustomerActivityReposit
             LIMIT :limit
             OFFSET :offset
             """;
+    private static final String CUSTOMER_SUMMARY_SQL = """
+            SELECT
+                COUNT(*)::INTEGER AS total_activities,
+                COALESCE(SUM(CASE WHEN t.activity_type = 'CARD' THEN 1 ELSE 0 END), 0)::INTEGER AS card_activities,
+                COALESCE(SUM(CASE WHEN t.activity_type = 'PAYMENT' THEN 1 ELSE 0 END), 0)::INTEGER AS payment_activities,
+                COALESCE(SUM(CASE WHEN t.activity_type = 'CRYPTO' THEN 1 ELSE 0 END), 0)::INTEGER AS crypto_activities,
+                COALESCE(SUM(CASE WHEN t.status = 'Failed' THEN 1 ELSE 0 END), 0)::INTEGER AS failed_activities,
+                COALESCE(SUM(CASE WHEN t.status = 'Pending' THEN 1 ELSE 0 END), 0)::INTEGER AS pending_activities
+            FROM transactions t
+            LEFT JOIN card_activity ca ON ca.transaction_id = t.transaction_id
+            LEFT JOIN payment_activity pa ON pa.transaction_id = t.transaction_id
+            LEFT JOIN crypto_activity cra ON cra.transaction_id = t.transaction_id
+            WHERE t.customer_id = :customerId
+            """;
     private static final String FILTERED_CUSTOMER_SUMMARY_SQL = """
             SELECT
                 COUNT(*)::INTEGER AS total_activities,
@@ -106,16 +120,21 @@ public class JdbcCustomerActivityQueryAdapter implements CustomerActivityReposit
                 parameters,
                 ACTIVITY_ROW_MAPPER
         );
-        CustomerActivitySummary summary = jdbcTemplate.queryForObject(
+        CustomerActivitySummary filteredSummary = jdbcTemplate.queryForObject(
                 FILTERED_CUSTOMER_SUMMARY_SQL.formatted(filterSql),
                 parameters,
+                JdbcCustomerActivityQueryAdapter::mapSummary
+        );
+        CustomerActivitySummary summary = jdbcTemplate.queryForObject(
+                CUSTOMER_SUMMARY_SQL,
+                new MapSqlParameterSource("customerId", customerId),
                 JdbcCustomerActivityQueryAdapter::mapSummary
         );
         CustomerActivityPage page = new CustomerActivityPage(
                 limit,
                 offset,
                 activities.size(),
-                offset + activities.size() < summary.totalActivities(),
+                offset + activities.size() < filteredSummary.totalActivities(),
                 offset + activities.size()
         );
         return new CustomerActivityReport(customerId, summary, activities, page);

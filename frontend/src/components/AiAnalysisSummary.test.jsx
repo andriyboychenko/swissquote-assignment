@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { AiAnalysisSummary } from "./AiAnalysisSummary";
 
 describe("AiAnalysisSummary", () => {
-  it("highlights triggered risk signals and total risk score", () => {
+  it("highlights triggered risk signals and average risk score", () => {
     render(
       <AiAnalysisSummary
         summary={`RISK ALERT SUMMARY
@@ -13,7 +13,7 @@ Review Window: Latest 100 loaded activities
 
 1. CONTRIBUTING SIGNALS:
    - Activity mix: 32 card, 38 payment, 30 crypto activities reviewed
-   - Risk model: Found 53 triggered risk signals with total risk score 985.`}
+   - Risk model: Found 53 triggered risk signals with average risk score 18.58.`}
       />
     );
 
@@ -21,11 +21,11 @@ Review Window: Latest 100 loaded activities
     expect(screen.getByText("38")).toHaveClass("analysis-highlight");
     expect(screen.getByText("30")).toHaveClass("analysis-highlight");
     expect(screen.getByText("53")).toHaveClass("analysis-highlight");
-    expect(screen.getByText("985")).toHaveClass("analysis-highlight");
+    expect(screen.getByText("18.58")).toHaveClass("analysis-highlight");
     expect(screen.getByText(/card,/)).toBeInTheDocument();
     expect(screen.getByText(/payment,/)).toBeInTheDocument();
     expect(screen.getByText(/crypto activities reviewed/)).toBeInTheDocument();
-    expect(screen.getByText(/triggered risk signals with total risk score/)).toBeInTheDocument();
+    expect(screen.getByText(/triggered risk signals with average risk score/)).toBeInTheDocument();
     expect(screen.getByText(/RISK ALERT SUMMARY/)).toHaveClass("analysis-summary-text");
   });
 

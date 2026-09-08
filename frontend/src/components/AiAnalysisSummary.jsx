@@ -2,7 +2,7 @@ import React from "react";
 
 const ALERT_SUMMARY_TITLES = ["RISK ALERT SUMMARY", "[RISK ALERT SUMMARY]"];
 const ACTIVITY_MIX_PATTERN = /(\d+)( card, )(\d+)( payment, )(\d+)( crypto activities reviewed)/g;
-const RISK_SIGNAL_SUMMARY_PATTERN = /(Found )(\d+)( triggered risk signals with total risk score )([\d.]+)(\.)/g;
+const RISK_SIGNAL_SUMMARY_PATTERN = /(Found )(\d+)( triggered risk signals with average risk score )([\d.]+)(\.)/g;
 
 export function AiAnalysisSummary({ summary }) {
   return <p className="analysis-summary-text">{renderHighlightedSummary(summary)}</p>;

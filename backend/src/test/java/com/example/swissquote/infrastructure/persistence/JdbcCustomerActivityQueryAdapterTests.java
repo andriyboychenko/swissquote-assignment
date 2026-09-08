@@ -45,7 +45,8 @@ class JdbcCustomerActivityQueryAdapterTests {
                 "PAN ****1234, MCC 5411, Decline: Insufficient funds",
                 List.of()
         );
-        CustomerActivitySummary summary = new CustomerActivitySummary(1, 1, 0, 0, 0, 0);
+        CustomerActivitySummary filteredSummary = new CustomerActivitySummary(1, 1, 0, 0, 0, 0);
+        CustomerActivitySummary customerSummary = new CustomerActivitySummary(100, 39, 31, 30, 5, 12);
         NamedParameterJdbcTemplate jdbcTemplate = mock(NamedParameterJdbcTemplate.class);
         when(jdbcTemplate.query(
                 contains("ORDER BY t.amount ASC, t.transaction_id ASC"),
@@ -56,7 +57,12 @@ class JdbcCustomerActivityQueryAdapterTests {
                 contains("LOWER(COALESCE(ca.merchant_name, pa.receiver_account, cra.wallet_address_to)) LIKE :counterparty"),
                 any(MapSqlParameterSource.class),
                 org.mockito.ArgumentMatchers.<RowMapper<CustomerActivitySummary>>any()
-        )).thenReturn(summary);
+        )).thenReturn(filteredSummary);
+        when(jdbcTemplate.queryForObject(
+                contains("WHERE t.customer_id = :customerId"),
+                any(MapSqlParameterSource.class),
+                org.mockito.ArgumentMatchers.<RowMapper<CustomerActivitySummary>>any()
+        )).thenReturn(customerSummary);
         JdbcCustomerActivityQueryAdapter adapter = new JdbcCustomerActivityQueryAdapter(jdbcTemplate);
 
         CustomerActivityReport report = adapter.findActivityReport(
@@ -96,7 +102,7 @@ class JdbcCustomerActivityQueryAdapterTests {
         assertThat(parameters.getValue("currency")).isEqualTo("CHF");
         assertThat(parameters.getValue("counterparty")).isEqualTo("%merchant%");
         assertThat(report.activities()).containsExactly(activity);
-        assertThat(report.summary()).isEqualTo(summary);
+        assertThat(report.summary()).isEqualTo(customerSummary);
     }
 
     @Test
@@ -104,7 +110,8 @@ class JdbcCustomerActivityQueryAdapterTests {
         UUID customerId = UUID.randomUUID();
         UUID transactionId = UUID.randomUUID();
         NamedParameterJdbcTemplate jdbcTemplate = mock(NamedParameterJdbcTemplate.class);
-        CustomerActivitySummary summary = new CustomerActivitySummary(1, 1, 0, 0, 0, 0);
+        CustomerActivitySummary filteredSummary = new CustomerActivitySummary(1, 1, 0, 0, 0, 0);
+        CustomerActivitySummary customerSummary = new CustomerActivitySummary(100, 39, 31, 30, 5, 12);
         ArgumentCaptor<RowMapper<CustomerActivity>> rowMapperCaptor = ArgumentCaptor.captor();
         when(jdbcTemplate.query(
                 contains("risk_indicators"),
@@ -115,7 +122,12 @@ class JdbcCustomerActivityQueryAdapterTests {
                 contains("COUNT(*)::INTEGER AS total_activities"),
                 any(MapSqlParameterSource.class),
                 org.mockito.ArgumentMatchers.<RowMapper<CustomerActivitySummary>>any()
-        )).thenReturn(summary);
+        )).thenReturn(filteredSummary);
+        when(jdbcTemplate.queryForObject(
+                contains("WHERE t.customer_id = :customerId"),
+                any(MapSqlParameterSource.class),
+                org.mockito.ArgumentMatchers.<RowMapper<CustomerActivitySummary>>any()
+        )).thenReturn(customerSummary);
         JdbcCustomerActivityQueryAdapter adapter = new JdbcCustomerActivityQueryAdapter(jdbcTemplate);
 
         CustomerActivityReport report = adapter.findActivityReport(
