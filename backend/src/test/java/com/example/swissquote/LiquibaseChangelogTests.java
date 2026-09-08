@@ -218,4 +218,19 @@ class LiquibaseChangelogTests {
             assertThat(riskBandChangeset).doesNotContain("'1d16706c-8c4a-41b4-b99d-2e6f1e566003'::UUID");
         }
     }
+
+    @Test
+    void masterChangelogEnsuresEveryDemoCustomerHasFiveFlaggedActivities() throws IOException {
+        try (InputStream inputStream = getClass().getResourceAsStream("/db/changelog/db.changelog-master.sql")) {
+            assertThat(inputStream).isNotNull();
+
+            String changelog = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertThat(changelog).contains("--changeset andriy:0015-minimum-demo-risk-signals");
+            assertThat(changelog).contains("customer_signal_counts.flagged_count < 5");
+            assertThat(changelog).contains("candidate_number <= 5 - flagged_count");
+            assertThat(changelog).contains("minimum-five-flagged-");
+            assertThat(changelog).contains("SET risk_indicators = indicator_values.risk_indicators");
+        }
+    }
 }

@@ -769,3 +769,89 @@ SELECT
     END
 FROM scored_transactions
 WHERE row_number % 2 = 0;
+
+--changeset andriy:0015-minimum-demo-risk-signals
+--comment Ensure every demo customer has at least five flagged activities for operator review.
+WITH customer_signal_counts AS (
+    SELECT
+        customer.customer_id,
+        COUNT(assessment.assessment_id)::INTEGER AS flagged_count
+    FROM customers customer
+    LEFT JOIN transactions tx ON tx.customer_id = customer.customer_id
+    LEFT JOIN risk_assessments assessment ON assessment.transaction_id = tx.transaction_id
+    GROUP BY customer.customer_id
+),
+candidate_transactions AS (
+    SELECT
+        tx.transaction_id,
+        tx.customer_id,
+        tx.activity_type,
+        tx.created_at,
+        customer_signal_counts.flagged_count,
+        ROW_NUMBER() OVER (
+            PARTITION BY tx.customer_id
+            ORDER BY MD5(tx.transaction_id::TEXT)
+        ) AS candidate_number
+    FROM transactions tx
+    JOIN customer_signal_counts
+        ON customer_signal_counts.customer_id = tx.customer_id
+    WHERE customer_signal_counts.flagged_count < 5
+      AND NOT EXISTS (
+          SELECT 1
+          FROM risk_assessments existing_assessment
+          WHERE existing_assessment.transaction_id = tx.transaction_id
+      )
+),
+selected_transactions AS (
+    SELECT *
+    FROM candidate_transactions
+    WHERE candidate_number <= 5 - flagged_count
+)
+INSERT INTO risk_assessments (
+    assessment_id,
+    transaction_id,
+    rule_id,
+    triggered_at,
+    score_contribution
+)
+SELECT
+    (
+        SUBSTRING(MD5('minimum-five-flagged-' || transaction_id), 1, 8) || '-' ||
+        SUBSTRING(MD5('minimum-five-flagged-' || transaction_id), 9, 4) || '-' ||
+        SUBSTRING(MD5('minimum-five-flagged-' || transaction_id), 13, 4) || '-' ||
+        SUBSTRING(MD5('minimum-five-flagged-' || transaction_id), 17, 4) || '-' ||
+        SUBSTRING(MD5('minimum-five-flagged-' || transaction_id), 21, 12)
+    )::UUID,
+    transaction_id,
+    CASE
+        WHEN activity_type = 'CARD' THEN '1d16706c-8c4a-41b4-b99d-2e6f1e566003'::UUID
+        WHEN activity_type = 'PAYMENT' THEN 'a6d547bb-9ae1-4e6a-aa2f-8cfaa1186004'::UUID
+        ELSE '27a67f38-d581-4015-b738-e468d8736007'::UUID
+    END,
+    created_at + INTERVAL '1 minute',
+    8.00
+FROM selected_transactions;
+
+WITH indicator_values AS (
+    SELECT
+        assessment.transaction_id,
+        JSONB_AGG(
+            JSONB_BUILD_OBJECT(
+                'ruleName', rule.rule_name,
+                'severity', CASE
+                    WHEN assessment.score_contribution >= 20 THEN 'HIGH'
+                    WHEN assessment.score_contribution >= 12 THEN 'MEDIUM'
+                    ELSE 'LOW'
+                END,
+                'scoreContribution', assessment.score_contribution
+            )
+            ORDER BY assessment.score_contribution DESC, rule.rule_name ASC
+        ) AS risk_indicators
+    FROM risk_assessments assessment
+    JOIN risk_rules rule ON rule.rule_id = assessment.rule_id
+    GROUP BY assessment.transaction_id
+)
+UPDATE transactions tx
+SET risk_indicators = indicator_values.risk_indicators
+FROM indicator_values
+WHERE indicator_values.transaction_id = tx.transaction_id;
