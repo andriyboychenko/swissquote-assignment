@@ -23,6 +23,14 @@ Open the application at <http://localhost:3000>.
 
 The demo starts with mock operator login enabled.
 
+Run the complete local test harness from the project root:
+
+```bash
+./scripts/agent-harness.sh
+```
+
+It runs backend and AI-service Gradle tests, frontend Vitest tests, and a Docker Compose configuration check. To run only backend tests, use `./gradlew :backend:test :ai-service:test`; to run only frontend tests, use `cd frontend && npm test`.
+
 ## Architecture
 
 ![Swissquote application architecture](docs/images/architecture.png)
@@ -59,3 +67,4 @@ The application services can scale horizontally. The current gateway uses sticky
 
 - **Mocked operators:** authentication uses mock operators for the demo. In a production system, this would be replaced with a dedicated authentication and identity service, including operator provisioning, roles, access policies, and account lifecycle management.
 - **Read-only transaction source:** transaction data is assumed to arrive from a PostgreSQL read replica populated by an upstream transaction platform. The demo focuses on searching, filtering, risk analysis, and review, so transaction insertion and ingestion workflows are intentionally not implemented here.
+- **Observability:** a production deployment would include observability tooling such as Sentry for error tracking and Prometheus for metrics. These components are omitted from the demo to keep the setup simple.

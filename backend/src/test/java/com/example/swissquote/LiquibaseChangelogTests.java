@@ -196,7 +196,6 @@ class LiquibaseChangelogTests {
             assertThat(changelog).contains("WHEN risk_band = 'MEDIUM' THEN row_number <= 3");
             assertThat(changelog).contains("WHEN risk_band = 'HIGH' THEN row_number <= 7");
             assertThat(changelog).contains("DELETE FROM ai_analysis_requests");
-            assertThat(changelog).contains("risk_indicators = '[]'::jsonb");
         }
     }
 
@@ -212,6 +211,7 @@ class LiquibaseChangelogTests {
             );
 
             assertThat(riskBandChangeset).doesNotContain("ai_analysis_");
+            assertThat(riskBandChangeset).doesNotContain("risk_indicators");
         }
     }
 }

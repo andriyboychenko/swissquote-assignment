@@ -318,8 +318,7 @@ SET
         WHEN ranked_transactions.risk_band = 'MEDIUM' AND ranked_transactions.row_number = 3 THEN 'Failed'
         WHEN ranked_transactions.risk_band = 'HIGH' AND ranked_transactions.row_number IN (3, 6) THEN 'Reversed'
         ELSE tx.status
-    END,
-    risk_indicators = '[]'::jsonb
+    END
 FROM ranked_transactions
 WHERE ranked_transactions.transaction_id = tx.transaction_id;
 
@@ -379,40 +378,6 @@ SELECT
         ELSE 20.00
     END
 FROM selected_transactions;
-
-WITH demo_risk_bands(customer_id, risk_band) AS (
-    VALUES
-        ('005514e6-1ebe-8010-de91-aff66d1d9484'::UUID, 'LOW'),
-        ('0a3ab26d-12b1-0efc-65d4-a2d6cc72ec67'::UUID, 'LOW'),
-        ('0abe215d-4832-1215-fe7a-264bfb844be9'::UUID, 'MEDIUM'),
-        ('0c534877-7dee-ed33-5278-68e39c8fe785'::UUID, 'MEDIUM'),
-        ('0ddc4d69-0dcf-fba9-15c2-88a68e6665de'::UUID, 'HIGH')
-),
-indicator_values AS (
-    SELECT
-        ra.transaction_id,
-        JSONB_AGG(
-            JSONB_BUILD_OBJECT(
-                'ruleName', rr.rule_name,
-                'severity', CASE
-                    WHEN ra.score_contribution >= 20 THEN 'HIGH'
-                    WHEN ra.score_contribution >= 12 THEN 'MEDIUM'
-                    ELSE 'LOW'
-                END,
-                'scoreContribution', ra.score_contribution
-            )
-            ORDER BY ra.score_contribution DESC, rr.rule_name ASC
-        ) AS risk_indicators
-    FROM risk_assessments ra
-    JOIN risk_rules rr ON rr.rule_id = ra.rule_id
-    JOIN transactions tx ON tx.transaction_id = ra.transaction_id
-    JOIN demo_risk_bands bands ON bands.customer_id = tx.customer_id
-    GROUP BY ra.transaction_id
-)
-UPDATE transactions tx
-SET risk_indicators = indicator_values.risk_indicators
-FROM indicator_values
-WHERE indicator_values.transaction_id = tx.transaction_id;
 
 --changeset andriy:0014-randomize-demo-risk-placement
 --comment Distribute existing first-five flagged transactions across each customer's timeline without changing risk bands.
