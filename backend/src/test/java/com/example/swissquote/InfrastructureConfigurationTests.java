@@ -19,6 +19,12 @@ class InfrastructureConfigurationTests {
         assertThat(compose).contains("./docker/nginx/api-gateway.conf:/etc/nginx/conf.d/default.conf:ro");
         assertThat(compose).contains("./docker/nginx/load-balancer.conf:/etc/nginx/conf.d/default.conf:ro");
         assertThat(compose).contains("\"3000:80\"");
+        assertThat(compose).contains("backend:\n        condition: service_healthy");
+        assertThat(compose).contains("api-gateway:\n        condition: service_healthy");
+        assertThat(compose).contains("frontend:\n        condition: service_healthy");
+        assertThat(compose).contains("http://127.0.0.1:8080/actuator/health");
+        assertThat(compose).contains("http://127.0.0.1:8080/health");
+        assertThat(compose).contains("http://127.0.0.1/health");
     }
 
     @Test
